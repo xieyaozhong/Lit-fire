@@ -1,5 +1,9 @@
 # 傳火計畫 Lit Fire
 
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/xieyaozhong/Lit-fire)
+
+> 點擊上方按鈕，登入 Render 後確認 Blueprint，即可建立 HTTPS 網站。
+
 這是一個手機優先的互動網頁：
 
 1. 在中央圓形點火區，以不同節奏點擊至少 3 次。
