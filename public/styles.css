@@ -332,6 +332,7 @@ input:not([type]) {
 #flameCanvas {
   position: absolute;
   inset: 0;
+  z-index: 2;
   width: 100%;
   height: 100%;
   pointer-events: none;
@@ -359,6 +360,15 @@ input:not([type]) {
   position: absolute;
   inset: 0;
   border-radius: 50%;
+}
+
+.ignition-core {
+  z-index: 0;
+}
+
+.ignition-ring {
+  z-index: 3;
+  pointer-events: none;
 }
 
 .ignition-core {
@@ -432,17 +442,26 @@ input:not([type]) {
 
 .ignition-text {
   position: relative;
-  z-index: 2;
+  z-index: 4;
   font-size: 1.08rem;
   font-weight: 850;
   line-height: 1.35;
-  text-shadow: 0 2px 14px #000;
+  text-shadow: 0 2px 14px #000, 0 0 18px rgba(0, 0, 0, 0.9);
   pointer-events: none;
+  transition: transform 260ms ease, opacity 260ms ease, font-size 260ms ease;
+}
+
+.ignition-button.lit .ignition-text {
+  transform: translateY(74px);
+  opacity: 0.82;
+  font-size: 0.76rem;
+  letter-spacing: 0.08em;
 }
 
 .tap-ripples {
   position: absolute;
   inset: 0;
+  z-index: 5;
   display: grid;
   place-items: center;
   pointer-events: none;
@@ -880,4 +899,14 @@ input[type="range"] {
     animation-iteration-count: 1 !important;
     transition-duration: 0.001ms !important;
   }
+}
+
+
+/* Ensure the animated flame stays visible inside the orb. */
+.ignition-button.lit .ignition-core {
+  opacity: 0.72;
+}
+
+.ignition-button:not(.lit) + .tap-ripples {
+  z-index: 5;
 }

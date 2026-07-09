@@ -430,7 +430,7 @@ async function finalizeRhythm() {
   state.flame = flame;
   renderFlame(flame, true);
   setRole('send');
-  elements.ignitionText.innerHTML = '火種<br>已成';
+  elements.ignitionText.innerHTML = '火種已成';
   navigator.vibrate?.([35, 40, 80]);
 
   try {
@@ -464,7 +464,7 @@ function renderFlame(flame, celebrate = false) {
   elements.flameSigil.textContent = meta.sigil;
   elements.resetFlameButton.disabled = false;
   elements.tempoLabel.textContent = flame.tempo ? `${flame.tempo} BPM` : '-- BPM';
-  elements.ignitionText.innerHTML = '火種<br>燃燒中';
+  elements.ignitionText.innerHTML = '燃燒中';
 
   if (Array.isArray(flame.rhythm) && flame.rhythm.length) {
     elements.rhythmDots.innerHTML = '';
