@@ -10,6 +10,7 @@
   };
 
   const originalFetch = window.fetch.bind(window);
+  const nativeSetTimeout = window.setTimeout.bind(window);
   const ignitionButton = document.getElementById('ignitionButton');
   const flameCard = document.getElementById('flameCard');
   const flameName = document.getElementById('flameName');
@@ -17,18 +18,39 @@
   const flameSigil = document.getElementById('flameSigil');
 
   let rhythmTapTimes = [];
+  let awaitingSlowSixth = false;
   let qualifyingSequenceUntil = 0;
 
   function mean(values) {
-    return values.reduce((sum, value) => sum + value, 0) / values.length;
+    return values.reduce((sum, value) => sum + value, 0) / Math.max(1, values.length);
   }
 
   function fastClusterIsValid(times) {
     if (times.length !== 5) return false;
     const intervals = times.slice(1).map((time, index) => time - times[index]);
-    return intervals.every((interval) => interval >= 35 && interval <= 280)
-      && mean(intervals) <= 225
-      && times.at(-1) - times[0] <= 1050;
+    return intervals.every((interval) => interval >= 30 && interval <= 320)
+      && mean(intervals) <= 260
+      && times.at(-1) - times[0] <= 1250;
+  }
+
+  function isFinalizeTimer(callback, delay) {
+    return typeof callback === 'function'
+      && callback.name === 'finalizeRhythm'
+      && Number(delay) === 1050;
+  }
+
+  window.setTimeout = (callback, delay = 0, ...args) => {
+    const nextDelay = isFinalizeTimer(callback, delay)
+      && awaitingSlowSixth
+      && rhythmTapTimes.length === 5
+      ? 1750
+      : delay;
+    return nativeSetTimeout(callback, nextDelay, ...args);
+  };
+
+  function resetRhythm(now) {
+    rhythmTapTimes = now ? [now] : [];
+    awaitingSlowSixth = false;
   }
 
   function recordPartyRhythm() {
@@ -38,17 +60,18 @@
     const previous = rhythmTapTimes.at(-1);
 
     if (!previous) {
-      rhythmTapTimes = [now];
+      resetRhythm(now);
       return;
     }
 
     const gap = now - previous;
 
     if (rhythmTapTimes.length < 5) {
-      if (gap >= 35 && gap <= 280) {
+      if (gap >= 30 && gap <= 320) {
         rhythmTapTimes.push(now);
+        awaitingSlowSixth = rhythmTapTimes.length === 5 && fastClusterIsValid(rhythmTapTimes);
       } else {
-        rhythmTapTimes = [now];
+        resetRhythm(now);
       }
       return;
     }
@@ -56,24 +79,25 @@
     if (rhythmTapTimes.length === 5 && fastClusterIsValid(rhythmTapTimes)) {
       const fastIntervals = rhythmTapTimes.slice(1).map((time, index) => time - rhythmTapTimes[index]);
       const fastAverage = mean(fastIntervals);
-      const slowEnough = gap >= Math.max(520, fastAverage * 2.45);
-      const beforeAutoFinalize = gap <= 950;
+      const slowEnough = gap >= Math.max(430, fastAverage * 1.9);
+      const notTooLate = gap <= 1450;
 
-      if (slowEnough && beforeAutoFinalize) {
-        qualifyingSequenceUntil = Date.now() + 2200;
-        rhythmTapTimes = [];
+      if (slowEnough && notTooLate) {
+        qualifyingSequenceUntil = Date.now() + 3200;
+        resetRhythm();
         navigator.vibrate?.([18, 22, 18, 22, 95]);
         return;
       }
 
-      if (gap >= 35 && gap <= 280) {
+      if (gap >= 30 && gap <= 320) {
         rhythmTapTimes.push(now);
         rhythmTapTimes.shift();
+        awaitingSlowSixth = fastClusterIsValid(rhythmTapTimes);
         return;
       }
     }
 
-    rhythmTapTimes = [now];
+    resetRhythm(now);
   }
 
   function makeBluePartyFlame(flame) {
@@ -115,7 +139,7 @@
   }
 
   function scheduleUiSync(flame) {
-    [0, 90, 240, 520, 980].forEach((delay) => window.setTimeout(() => applyBluePartyUi(flame), delay));
+    [0, 90, 240, 520, 980].forEach((delay) => nativeSetTimeout(() => applyBluePartyUi(flame), delay));
   }
 
   if (ignitionButton) {
@@ -134,7 +158,7 @@
           nextInit = { ...init, body: JSON.stringify(body) };
           scheduleUiSync(body.flame);
           qualifyingSequenceUntil = 0;
-          rhythmTapTimes = [];
+          resetRhythm();
         }
       } catch {
         // Leave unrelated requests unchanged.
