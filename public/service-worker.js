@@ -1,6 +1,6 @@
 'use strict';
 
-const CACHE_NAME = 'fire-passing-shell-v7';
+const CACHE_NAME = 'fire-passing-shell-v8';
 const APP_SHELL = [
   '/',
   '/index.html',
