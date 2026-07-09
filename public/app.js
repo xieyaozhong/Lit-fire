@@ -84,6 +84,7 @@ const state = {
   deviceName: '',
   role: 'send',
   flame: null,
+  isResettingFlame: false,
   tapTimes: [],
   finalizeTimer: null,
   pollTimer: null,
@@ -262,8 +263,10 @@ function applyServerState(serverState, initial = false) {
   const current = serverState.current;
   if (current) {
     const incomingFlame = current.flame || null;
+    const ignoreStaleFlame = state.isResettingFlame && incomingFlame;
     const changed = JSON.stringify(incomingFlame) !== JSON.stringify(state.flame);
-    if (changed) {
+    if (changed && !ignoreStaleFlame) {
+      clearFlameVisuals();
       state.flame = incomingFlame;
       if (state.flame) {
         renderFlame(state.flame, !initial);
@@ -422,6 +425,8 @@ async function finalizeRhythm() {
     origin: state.deviceName
   };
 
+  clearFlameVisuals();
+  state.isResettingFlame = false;
   state.flame = flame;
   renderFlame(flame, true);
   setRole('send');
@@ -482,23 +487,48 @@ function renderFlame(flame, celebrate = false) {
 }
 
 async function resetFlame(sendToServer = true) {
+  state.isResettingFlame = true;
+  clearTimeout(state.finalizeTimer);
+  state.finalizeTimer = null;
   state.flame = null;
   state.tapTimes = [];
+  clearFlameVisuals();
   resetFlameUi();
   setRole('receive');
-  if (!sendToServer || !state.roomCode) return;
+
+  if (!sendToServer || !state.roomCode) {
+    state.isResettingFlame = false;
+    return;
+  }
+
   try {
-    await api('/api/flame', {
+    const data = await api('/api/flame', {
       method: 'POST',
       body: JSON.stringify({ roomCode: state.roomCode, deviceId: state.deviceId, flame: null })
     });
+    state.isResettingFlame = false;
+    applyServerState(data.state);
   } catch (error) {
+    state.isResettingFlame = false;
     showToast(error.message);
   }
 }
 
+function clearFlameVisuals() {
+  state.flameParticles.length = 0;
+  elements.tapRipples.innerHTML = '';
+
+  const canvas = elements.flameCanvas;
+  const context = canvas.getContext('2d');
+  context.save();
+  context.setTransform(1, 0, 0, 1, 0, 0);
+  context.clearRect(0, 0, canvas.width, canvas.height);
+  context.restore();
+}
+
 function resetFlameUi(clearState = true) {
   if (clearState) state.flame = null;
+  clearFlameVisuals();
   elements.flameCard.classList.add('empty');
   elements.flameCard.style.removeProperty('--flame-primary');
   elements.flameCard.style.removeProperty('--flame-secondary');
@@ -728,16 +758,15 @@ function initFlameRenderer() {
     return rect;
   }
 
-  function spawnParticle(width, height, colors) {
-    const baseX = width / 2;
+  function spawnParticle(cx, cy, radius, colors) {
     state.flameParticles.push({
-      x: baseX + (Math.random() - 0.5) * 80,
-      y: height * 0.74 + Math.random() * 15,
-      vx: (Math.random() - 0.5) * 0.45,
-      vy: -(Math.random() * 1.2 + 0.55),
+      x: cx + (Math.random() - 0.5) * radius * 0.58,
+      y: cy + radius * 0.38 + Math.random() * 8,
+      vx: (Math.random() - 0.5) * 0.34,
+      vy: -(Math.random() * 0.9 + 0.45),
       life: 1,
       decay: Math.random() * 0.012 + 0.009,
-      r: Math.random() * 3.3 + 1,
+      r: Math.random() * 3 + 1,
       color: colors[Math.floor(Math.random() * Math.min(colors.length, 3))]
     });
   }
@@ -774,6 +803,34 @@ function initFlameRenderer() {
     ctx.restore();
   }
 
+  function drawOrbHalo(cx, cy, radius, colors, time) {
+    const outerGlow = ctx.createRadialGradient(cx, cy, radius * 0.18, cx, cy, radius * 1.72);
+    outerGlow.addColorStop(0, `${colors[1]}1c`);
+    outerGlow.addColorStop(0.42, `${colors[2] || colors[1]}22`);
+    outerGlow.addColorStop(0.8, `${colors[3] || colors[2] || colors[1]}10`);
+    outerGlow.addColorStop(1, 'transparent');
+    ctx.fillStyle = outerGlow;
+    ctx.fillRect(cx - radius * 1.9, cy - radius * 1.9, radius * 3.8, radius * 3.8);
+
+    ctx.save();
+    ctx.globalCompositeOperation = 'screen';
+    ctx.lineWidth = radius * 0.07;
+    ctx.strokeStyle = `${colors[1]}99`;
+    ctx.shadowBlur = 16;
+    ctx.shadowColor = colors[1];
+    ctx.beginPath();
+    ctx.arc(cx, cy, radius * (1.01 + Math.sin(time * 0.0024) * 0.012), 0, Math.PI * 2);
+    ctx.stroke();
+
+    ctx.lineWidth = radius * 0.028;
+    ctx.strokeStyle = `${colors[0]}d0`;
+    ctx.shadowBlur = 14;
+    ctx.beginPath();
+    ctx.arc(cx, cy, radius * (0.78 + Math.sin(time * 0.0033 + 1.4) * 0.014), 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+  }
+
   function frame(time) {
     const rect = getSize();
     const width = rect.width;
@@ -783,22 +840,59 @@ function initFlameRenderer() {
     if (state.flame) {
       const colors = state.flame.colors || FLAME_TYPES.ember.colors;
       const cx = width / 2;
-      const baseY = height * 0.76;
+      const cy = height * 0.53;
+      const radius = Math.min(width, height) * 0.29;
+      const baseY = cy + radius * 0.54;
       const seedPhase = (state.flame.seed % 1000) / 100;
 
-      const glow = ctx.createRadialGradient(cx, baseY - 70, 10, cx, baseY - 45, 150);
-      glow.addColorStop(0, `${colors[1]}88`);
-      glow.addColorStop(0.4, `${colors[2] || colors[1]}36`);
-      glow.addColorStop(1, 'transparent');
-      ctx.fillStyle = glow;
-      ctx.fillRect(cx - 170, baseY - 220, 340, 260);
+      drawOrbHalo(cx, cy, radius, colors, time);
 
-      drawFlameShape(cx, baseY, 72, 175, colors[3] || colors[2], time, seedPhase, 0.72);
-      drawFlameShape(cx + Math.sin(time * 0.002) * 7, baseY - 4, 57, 145, colors[2] || colors[1], time, seedPhase + 2, 0.9);
-      drawFlameShape(cx - Math.sin(time * 0.003) * 5, baseY - 7, 39, 110, colors[1], time, seedPhase + 4, 0.96);
-      drawFlameShape(cx, baseY - 12, 22, 72, colors[0], time, seedPhase + 6, 0.98);
+      const orbFill = ctx.createRadialGradient(cx, cy - radius * 0.24, radius * 0.12, cx, cy, radius * 1.05);
+      orbFill.addColorStop(0, 'rgba(255,255,255,0.16)');
+      orbFill.addColorStop(0.24, `${colors[0]}22`);
+      orbFill.addColorStop(0.55, 'rgba(23, 15, 36, 0.8)');
+      orbFill.addColorStop(1, 'rgba(7, 5, 14, 0.97)');
+      ctx.fillStyle = orbFill;
+      ctx.beginPath();
+      ctx.arc(cx, cy, radius * 0.98, 0, Math.PI * 2);
+      ctx.fill();
 
-      if (Math.random() < 0.42) spawnParticle(width, height, colors);
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(cx, cy, radius * 0.92, 0, Math.PI * 2);
+      ctx.clip();
+
+      const innerGlow = ctx.createRadialGradient(cx, cy + radius * 0.08, radius * 0.1, cx, cy + radius * 0.14, radius * 0.98);
+      innerGlow.addColorStop(0, `${colors[1]}26`);
+      innerGlow.addColorStop(0.52, `${colors[2] || colors[1]}10`);
+      innerGlow.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.fillStyle = innerGlow;
+      ctx.fillRect(cx - radius, cy - radius, radius * 2, radius * 2);
+
+      drawFlameShape(cx, baseY, radius * 0.7, radius * 0.98, colors[3] || colors[2], time, seedPhase, 0.38);
+      drawFlameShape(cx + Math.sin(time * 0.0022) * radius * 0.08, baseY - radius * 0.03, radius * 0.54, radius * 0.82, colors[2] || colors[1], time, seedPhase + 2.2, 0.62);
+      drawFlameShape(cx - Math.sin(time * 0.0034) * radius * 0.06, baseY - radius * 0.06, radius * 0.4, radius * 0.62, colors[1], time, seedPhase + 4.6, 0.88);
+      drawFlameShape(cx, baseY - radius * 0.1, radius * 0.24, radius * 0.42, colors[0], time, seedPhase + 6.3, 0.96);
+
+      const core = ctx.createRadialGradient(cx, cy + radius * 0.12, radius * 0.03, cx, cy + radius * 0.2, radius * 0.46);
+      core.addColorStop(0, `${colors[0]}dd`);
+      core.addColorStop(0.42, `${colors[1]}6e`);
+      core.addColorStop(1, 'transparent');
+      ctx.fillStyle = core;
+      ctx.beginPath();
+      ctx.ellipse(cx, cy + radius * 0.22, radius * 0.34, radius * 0.22, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+
+      ctx.save();
+      ctx.strokeStyle = `${colors[0]}35`;
+      ctx.lineWidth = radius * 0.016;
+      ctx.beginPath();
+      ctx.arc(cx, cy, radius * 0.9, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+
+      if (Math.random() < 0.44) spawnParticle(cx, cy, radius, colors);
     }
 
     state.flameParticles = state.flameParticles.filter((particle) => particle.life > 0);

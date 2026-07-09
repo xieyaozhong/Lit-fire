@@ -322,11 +322,11 @@ input:not([type]) {
 .ignition-stage::before {
   content: "";
   position: absolute;
-  width: 280px;
+  width: 320px;
   aspect-ratio: 1;
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(255, 133, 65, 0.17), rgba(121, 58, 190, 0.06) 46%, transparent 70%);
-  filter: blur(5px);
+  background: radial-gradient(circle, rgba(255, 148, 82, 0.18), rgba(121, 58, 190, 0.08) 46%, transparent 72%);
+  filter: blur(10px);
 }
 
 #flameCanvas {
@@ -351,6 +351,7 @@ input:not([type]) {
   touch-action: manipulation;
   user-select: none;
   -webkit-user-select: none;
+  overflow: visible;
 }
 
 .ignition-core,
@@ -361,35 +362,72 @@ input:not([type]) {
 }
 
 .ignition-core {
-  border: 1px solid rgba(255, 224, 168, 0.25);
+  border: 1px solid rgba(255, 238, 204, 0.14);
   background:
-    radial-gradient(circle at 48% 42%, rgba(255, 245, 211, 0.3), transparent 22%),
-    radial-gradient(circle, rgba(255, 129, 56, 0.22), rgba(125, 57, 161, 0.14) 50%, rgba(12, 8, 20, 0.94) 72%);
+    radial-gradient(circle at 50% 33%, rgba(255, 255, 255, 0.15), transparent 16%),
+    radial-gradient(circle at 50% 45%, rgba(255, 181, 112, 0.08), rgba(30, 17, 48, 0.3) 46%, rgba(10, 7, 18, 0.95) 74%);
   box-shadow:
-    inset 0 0 48px rgba(255, 130, 59, 0.16),
-    0 0 0 8px rgba(255, 255, 255, 0.02),
-    0 0 70px rgba(255, 105, 42, 0.19);
-  transition: transform 140ms ease, filter 250ms ease;
+    inset 0 0 58px rgba(255, 255, 255, 0.04),
+    inset 0 -16px 42px rgba(8, 5, 15, 0.66),
+    0 0 0 10px rgba(255, 255, 255, 0.015),
+    0 0 84px rgba(255, 125, 64, 0.14);
+  transition: transform 140ms ease, filter 250ms ease, box-shadow 250ms ease, border-color 250ms ease;
+}
+
+.ignition-core::before,
+.ignition-core::after {
+  content: "";
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.ignition-core::before {
+  inset: 12%;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  box-shadow: inset 0 0 26px rgba(255, 255, 255, 0.04);
+}
+
+.ignition-core::after {
+  inset: 17%;
+  background: radial-gradient(circle at 50% 30%, rgba(255, 245, 222, 0.18), rgba(255, 255, 255, 0.02) 28%, transparent 60%);
+  opacity: 0.85;
 }
 
 .ignition-ring {
-  inset: -12px;
-  border: 1px dashed rgba(255, 210, 134, 0.23);
+  inset: -14px;
+  border: 1px solid rgba(255, 223, 176, 0.16);
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.025),
+    0 0 18px rgba(255, 175, 112, 0.12),
+    inset 0 0 26px rgba(255, 255, 255, 0.04);
   animation: slow-spin 18s linear infinite;
 }
 
 .ignition-button:active .ignition-core,
 .ignition-button.tapped .ignition-core {
-  transform: scale(0.92);
-  filter: brightness(1.45);
+  transform: scale(0.94);
+  filter: brightness(1.2);
 }
 
 .ignition-button.lit .ignition-core {
-  border-color: color-mix(in srgb, var(--flame-primary, #ff9b45) 55%, white);
+  border-color: color-mix(in srgb, var(--flame-primary, #ff9b45) 44%, white);
   background:
-    radial-gradient(circle at 48% 42%, rgba(255, 255, 255, 0.4), transparent 20%),
-    radial-gradient(circle, color-mix(in srgb, var(--flame-primary, #ff9b45) 32%, transparent), color-mix(in srgb, var(--flame-secondary, #ff533b) 20%, #140d22) 50%, rgba(8, 5, 14, 0.95) 74%);
-  box-shadow: 0 0 90px color-mix(in srgb, var(--flame-primary, #ff9b45) 34%, transparent);
+    radial-gradient(circle at 50% 30%, rgba(255, 255, 255, 0.22), transparent 14%),
+    radial-gradient(circle at 50% 48%, color-mix(in srgb, var(--flame-primary, #ff9b45) 13%, transparent), rgba(28, 17, 45, 0.36) 44%, rgba(8, 5, 14, 0.96) 74%);
+  box-shadow:
+    inset 0 0 70px color-mix(in srgb, var(--flame-primary, #ff9b45) 8%, transparent),
+    inset 0 -18px 44px rgba(5, 4, 13, 0.72),
+    0 0 0 10px rgba(255, 255, 255, 0.02),
+    0 0 115px color-mix(in srgb, var(--flame-primary, #ff9b45) 26%, transparent);
+}
+
+.ignition-button.lit .ignition-ring {
+  border-color: color-mix(in srgb, var(--flame-primary, #ff9b45) 34%, rgba(255, 255, 255, 0.18));
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--flame-secondary, #ff533b) 18%, transparent),
+    0 0 26px color-mix(in srgb, var(--flame-primary, #ff9b45) 24%, transparent),
+    inset 0 0 30px color-mix(in srgb, var(--flame-secondary, #ff533b) 12%, transparent);
 }
 
 .ignition-text {
