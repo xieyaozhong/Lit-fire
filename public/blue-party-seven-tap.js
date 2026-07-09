@@ -205,4 +205,87 @@
 
     return originalFetch(input, nextInit);
   };
+
+  const style = document.createElement('style');
+  style.textContent = `
+    .ignition-button[data-flame-type="blue-party"] #persistentFlameCanvas {
+      animation: blue-party-blink-flame 0.92s steps(2, end) infinite !important;
+      transform-origin: 50% 68%;
+    }
+
+    .ignition-button[data-flame-type="blue-party"] .ignition-ring {
+      border-color: rgba(110, 231, 255, 0.94) !important;
+      box-shadow:
+        0 0 28px rgba(20, 124, 255, 0.72),
+        0 0 62px rgba(39, 32, 168, 0.52),
+        inset 0 0 34px rgba(110, 231, 255, 0.28) !important;
+      animation: blue-party-blink-ring 0.92s steps(2, end) infinite !important;
+    }
+
+    .ignition-button[data-flame-type="blue-party"] .ignition-core {
+      background:
+        radial-gradient(circle at 50% 36%, rgba(239, 252, 255, 0.34), transparent 14%),
+        radial-gradient(circle, rgba(20, 124, 255, 0.24), rgba(39, 32, 168, 0.22) 48%, rgba(5, 4, 20, 0.98) 77%) !important;
+      animation: blue-party-blink-core 0.92s steps(2, end) infinite !important;
+    }
+
+    .flame-card[data-flame-type="blue-party"] {
+      animation: blue-party-card-pulse 1.84s ease-in-out infinite;
+    }
+
+    @keyframes blue-party-blink-flame {
+      0%, 49% {
+        opacity: 1;
+        transform: scale(1.045);
+        filter: saturate(1.8) brightness(1.48) contrast(1.15);
+      }
+      50%, 100% {
+        opacity: 0.08;
+        transform: scale(0.96);
+        filter: saturate(0.65) brightness(0.32) contrast(1.25);
+      }
+    }
+
+    @keyframes blue-party-blink-ring {
+      0%, 49% {
+        opacity: 1;
+        transform: scale(1.035);
+        filter: brightness(1.65);
+      }
+      50%, 100% {
+        opacity: 0.18;
+        transform: scale(0.985);
+        filter: brightness(0.38);
+      }
+    }
+
+    @keyframes blue-party-blink-core {
+      0%, 49% {
+        opacity: 1;
+        filter: brightness(1.35);
+      }
+      50%, 100% {
+        opacity: 0.28;
+        filter: brightness(0.42);
+      }
+    }
+
+    @keyframes blue-party-card-pulse {
+      0%, 100% {
+        box-shadow: inset 0 0 28px rgba(110, 231, 255, 0.05), 0 0 20px rgba(20, 124, 255, 0.06);
+      }
+      50% {
+        box-shadow: inset 0 0 32px rgba(110, 231, 255, 0.13), 0 0 34px rgba(20, 124, 255, 0.18);
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .ignition-button[data-flame-type="blue-party"] #persistentFlameCanvas,
+      .ignition-button[data-flame-type="blue-party"] .ignition-ring,
+      .ignition-button[data-flame-type="blue-party"] .ignition-core {
+        animation-duration: 1.8s !important;
+      }
+    }
+  `;
+  document.head.appendChild(style);
 })();
