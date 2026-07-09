@@ -1,0 +1,64 @@
+name: Require extinguishing before reignition
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/lock-active-flame.yml
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Lock ignition while flame exists
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          app_path = Path('public/app.js')
+          sw_path = Path('public/service-worker.js')
+
+          app = app_path.read_text(encoding='utf-8')
+          old = """function registerTap(event) {
+            event.preventDefault();
+            const now = performance.now();
+          """
+          new = """function registerTap(event) {
+            event.preventDefault();
+
+            if (state.flame || state.isResettingFlame) {
+              navigator.vibrate?.([25, 35, 25]);
+              showToast(state.isResettingFlame ? '火種正在熄滅，請稍候' : '請先熄滅目前火種');
+              return;
+            }
+
+            const now = performance.now();
+          """
+          if old not in app:
+              raise SystemExit('registerTap block not found')
+          app = app.replace(old, new, 1)
+          app_path.write_text(app, encoding='utf-8')
+
+          sw = sw_path.read_text(encoding='utf-8')
+          sw = sw.replace('fire-passing-shell-v5', 'fire-passing-shell-v6')
+          sw_path.write_text(sw, encoding='utf-8')
+          PY
+          node --check public/app.js
+          node --check server.js
+      - name: Commit update
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add public/app.js public/service-worker.js
+          git rm .github/workflows/lock-active-flame.yml
+          git commit -m "Require extinguishing before reignition"
+          git push origin main
