@@ -85,6 +85,8 @@ const state = {
   role: 'send',
   flame: null,
   isResettingFlame: false,
+  flameRevision: 0,
+  ignoreEmptyServerUntil: 0,
   tapTimes: [],
   finalizeTimer: null,
   pollTimer: null,
@@ -264,11 +266,13 @@ function applyServerState(serverState, initial = false) {
   if (current) {
     const incomingFlame = current.flame || null;
     const ignoreStaleFlame = state.isResettingFlame && incomingFlame;
+    const ignoreStaleEmpty = !incomingFlame && state.flame && Date.now() < state.ignoreEmptyServerUntil;
     const changed = JSON.stringify(incomingFlame) !== JSON.stringify(state.flame);
-    if (changed && !ignoreStaleFlame) {
+    if (changed && !ignoreStaleFlame && !ignoreStaleEmpty) {
       clearFlameVisuals();
       state.flame = incomingFlame;
       if (state.flame) {
+        state.ignoreEmptyServerUntil = 0;
         renderFlame(state.flame, !initial);
       } else {
         resetFlameUi(false);
@@ -425,8 +429,10 @@ async function finalizeRhythm() {
     origin: state.deviceName
   };
 
+  const flameRevision = ++state.flameRevision;
   clearFlameVisuals();
   state.isResettingFlame = false;
+  state.ignoreEmptyServerUntil = Date.now() + 10000;
   state.flame = flame;
   renderFlame(flame, true);
   setRole('send');
@@ -438,8 +444,11 @@ async function finalizeRhythm() {
       method: 'POST',
       body: JSON.stringify({ roomCode: state.roomCode, deviceId: state.deviceId, flame })
     });
+    if (flameRevision !== state.flameRevision) return;
+    state.ignoreEmptyServerUntil = Date.now() + 1800;
     setTransferStatus('idle', '火焰已準備好', '讓另一支手機加入同一房間，準備進行傳火。', '🔥');
   } catch (error) {
+    if (flameRevision !== state.flameRevision) return;
     showToast(`火焰已生成，但同步失敗：${error.message}`);
   }
 }
@@ -487,7 +496,9 @@ function renderFlame(flame, celebrate = false) {
 }
 
 async function resetFlame(sendToServer = true) {
+  const resetRevision = ++state.flameRevision;
   state.isResettingFlame = true;
+  state.ignoreEmptyServerUntil = 0;
   clearTimeout(state.finalizeTimer);
   state.finalizeTimer = null;
   state.flame = null;
@@ -497,7 +508,7 @@ async function resetFlame(sendToServer = true) {
   setRole('receive');
 
   if (!sendToServer || !state.roomCode) {
-    state.isResettingFlame = false;
+    if (resetRevision === state.flameRevision) state.isResettingFlame = false;
     return;
   }
 
@@ -506,9 +517,11 @@ async function resetFlame(sendToServer = true) {
       method: 'POST',
       body: JSON.stringify({ roomCode: state.roomCode, deviceId: state.deviceId, flame: null })
     });
+    if (resetRevision !== state.flameRevision || state.flame) return;
     state.isResettingFlame = false;
     applyServerState(data.state);
   } catch (error) {
+    if (resetRevision !== state.flameRevision) return;
     state.isResettingFlame = false;
     showToast(error.message);
   }
