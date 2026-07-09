@@ -1,6 +1,6 @@
 'use strict';
 
-const CACHE_NAME = 'fire-passing-shell-v10';
+const CACHE_NAME = 'fire-passing-shell-v11';
 const APP_SHELL = [
   '/',
   '/index.html',
@@ -8,6 +8,7 @@ const APP_SHELL = [
   '/clean-ui.css?v=1',
   '/rainbow-extension.js?v=1',
   '/pink-meaning-extension.js?v=1',
+  '/airdrop-transfer.js?v=1',
   '/app.js',
   '/persistent-flame.js?v=1',
   '/manifest.webmanifest',
