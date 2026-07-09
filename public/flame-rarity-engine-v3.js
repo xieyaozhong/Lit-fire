@@ -141,7 +141,7 @@
     }
     if (tempoLabel) tempoLabel.textContent = values.length ? `${Math.round(60000 / mean(values))} BPM` : '-- BPM';
     if (ignitionText && !locked) {
-      ignitionText.innerHTML = darkWaiting ? '停留<br>7 秒' : taps.length ? `${taps.length} 下<br>等待成火` : '點擊<br>點火';
+      ignitionText.innerHTML = taps.length ? `${taps.length} 下<br>等待成火` : '點擊<br>點火';
     }
   }
 
