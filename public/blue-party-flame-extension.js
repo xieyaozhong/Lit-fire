@@ -4,7 +4,7 @@
   const BLUE_PARTY_FLAME = {
     type: 'blue-party',
     name: '歸藍趴火',
-    description: '十三下連續快點，把節拍壓縮成高亮藍焰與派對脈衝；象徵重新歸隊、放下拘束，以及和同伴一起把快樂點燃。',
+    description: '前五下快速聚集節拍，第六下放慢落地，讓高亮藍焰在停頓後爆發派對脈衝；象徵重新歸隊、放下拘束，以及和同伴一起把快樂點燃。',
     colors: ['#effcff', '#6ee7ff', '#147cff', '#2720a8', '#08061f'],
     sigil: '♬'
   };
@@ -16,38 +16,64 @@
   const flameDescription = document.getElementById('flameDescription');
   const flameSigil = document.getElementById('flameSigil');
 
-  let rapidTapTimes = [];
+  let rhythmTapTimes = [];
   let qualifyingSequenceUntil = 0;
 
-  function recordRapidTap() {
+  function mean(values) {
+    return values.reduce((sum, value) => sum + value, 0) / values.length;
+  }
+
+  function fastClusterIsValid(times) {
+    if (times.length !== 5) return false;
+    const intervals = times.slice(1).map((time, index) => time - times[index]);
+    return intervals.every((interval) => interval >= 35 && interval <= 280)
+      && mean(intervals) <= 225
+      && times.at(-1) - times[0] <= 1050;
+  }
+
+  function recordPartyRhythm() {
     if (ignitionButton?.classList.contains('lit')) return;
 
     const now = performance.now();
-    const previous = rapidTapTimes.at(-1);
-    if (previous && now - previous > 380) rapidTapTimes = [];
+    const previous = rhythmTapTimes.at(-1);
 
-    rapidTapTimes.push(now);
-    if (rapidTapTimes.length > 13) rapidTapTimes.shift();
-
-    if (isThirteenFastTaps(rapidTapTimes)) {
-      qualifyingSequenceUntil = Date.now() + 2200;
-      navigator.vibrate?.([18, 22, 18, 22, 70]);
+    if (!previous) {
+      rhythmTapTimes = [now];
+      return;
     }
-  }
 
-  function isThirteenFastTaps(times) {
-    if (!Array.isArray(times) || times.length !== 13) return false;
-    const intervals = times.slice(1).map((time, index) => time - times[index]);
-    const average = intervals.reduce((sum, interval) => sum + interval, 0) / intervals.length;
-    const maximum = Math.max(...intervals);
-    const minimum = Math.min(...intervals);
-    const totalDuration = times.at(-1) - times[0];
+    const gap = now - previous;
 
-    return average >= 55
-      && average <= 260
-      && maximum <= 360
-      && minimum >= 35
-      && totalDuration <= 3200;
+    if (rhythmTapTimes.length < 5) {
+      if (gap >= 35 && gap <= 280) {
+        rhythmTapTimes.push(now);
+      } else {
+        rhythmTapTimes = [now];
+      }
+      return;
+    }
+
+    if (rhythmTapTimes.length === 5 && fastClusterIsValid(rhythmTapTimes)) {
+      const fastIntervals = rhythmTapTimes.slice(1).map((time, index) => time - rhythmTapTimes[index]);
+      const fastAverage = mean(fastIntervals);
+      const slowEnough = gap >= Math.max(520, fastAverage * 2.45);
+      const beforeAutoFinalize = gap <= 950;
+
+      if (slowEnough && beforeAutoFinalize) {
+        qualifyingSequenceUntil = Date.now() + 2200;
+        rhythmTapTimes = [];
+        navigator.vibrate?.([18, 22, 18, 22, 95]);
+        return;
+      }
+
+      if (gap >= 35 && gap <= 280) {
+        rhythmTapTimes.push(now);
+        rhythmTapTimes.shift();
+        return;
+      }
+    }
+
+    rhythmTapTimes = [now];
   }
 
   function makeBluePartyFlame(flame) {
@@ -58,7 +84,8 @@
       colors: BLUE_PARTY_FLAME.colors,
       specialFlame: true,
       symbolicMeaning: '重新歸隊、放下拘束，以及和同伴一起把快樂點燃。',
-      tapCount: 13
+      tapCount: 6,
+      rhythmSignature: 'five-fast-one-slow'
     };
   }
 
@@ -92,7 +119,7 @@
   }
 
   if (ignitionButton) {
-    ignitionButton.addEventListener('pointerdown', recordRapidTap, true);
+    ignitionButton.addEventListener('pointerdown', recordPartyRhythm, true);
   }
 
   window.fetch = async (input, init = {}) => {
@@ -107,7 +134,7 @@
           nextInit = { ...init, body: JSON.stringify(body) };
           scheduleUiSync(body.flame);
           qualifyingSequenceUntil = 0;
-          rapidTapTimes = [];
+          rhythmTapTimes = [];
         }
       } catch {
         // Leave unrelated requests unchanged.
