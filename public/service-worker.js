@@ -1,6 +1,6 @@
 'use strict';
 
-const CACHE_NAME = 'fire-passing-shell-v41';
+const CACHE_NAME = 'fire-passing-shell-v42';
 const DISABLED_LEGACY_SCRIPTS = new Set([
   '/stable-flame-engine.js',
   '/stable-flame-engine-v2.js',
@@ -32,6 +32,7 @@ const APP_SHELL = [
   '/ignition-touch-guard.js?v=1',
   '/flame-count-priority.js?v=1',
   '/flame-rarity-engine-v3.js?v=2',
+  '/pure-spark-signature-effect.js?v=1',
   '/thunder-strike-animation.js?v=1',
   '/dawn-sunrise-animation.js?v=1',
   '/airdrop-transfer.js?v=1',
