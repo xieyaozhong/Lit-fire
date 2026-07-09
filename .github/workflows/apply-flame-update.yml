@@ -1,0 +1,445 @@
+name: Apply flame visual update
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/apply-flame-update.yml
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Update flame renderer and cleanup logic
+        shell: bash
+        run: |
+          cat > /tmp/apply_flame_update.py <<'PY'
+          from pathlib import Path
+          
+          root = Path('.')
+          app_path = root / 'public' / 'app.js'
+          css_path = root / 'public' / 'styles.css'
+          sw_path = root / 'public' / 'service-worker.js'
+          
+          app = app_path.read_text(encoding='utf-8')
+          
+          if "isResettingFlame: false" not in app:
+              app = app.replace(
+                  "  flame: null,\n  tapTimes: [],",
+                  "  flame: null,\n  isResettingFlame: false,\n  tapTimes: [],",
+                  1,
+              )
+          
+          old_apply = """  const current = serverState.current;
+            if (current) {
+              const incomingFlame = current.flame || null;
+              const changed = JSON.stringify(incomingFlame) !== JSON.stringify(state.flame);
+              if (changed) {
+                state.flame = incomingFlame;
+                if (state.flame) {
+                  renderFlame(state.flame, !initial);
+                } else {
+                  resetFlameUi(false);
+                }
+              }
+            }
+          """
+          new_apply = """  const current = serverState.current;
+            if (current) {
+              const incomingFlame = current.flame || null;
+              const ignoreStaleFlame = state.isResettingFlame && incomingFlame;
+              const changed = JSON.stringify(incomingFlame) !== JSON.stringify(state.flame);
+              if (changed && !ignoreStaleFlame) {
+                clearFlameVisuals();
+                state.flame = incomingFlame;
+                if (state.flame) {
+                  renderFlame(state.flame, !initial);
+                } else {
+                  resetFlameUi(false);
+                }
+              }
+            }
+          """
+          if old_apply in app:
+              app = app.replace(old_apply, new_apply, 1)
+          
+          old_generate = """  state.flame = flame;
+            renderFlame(flame, true);
+          """
+          new_generate = """  clearFlameVisuals();
+            state.isResettingFlame = false;
+            state.flame = flame;
+            renderFlame(flame, true);
+          """
+          if old_generate in app:
+              app = app.replace(old_generate, new_generate, 1)
+          
+          reset_start = app.index("async function resetFlame(sendToServer = true) {")
+          reset_end = app.index("async function setRole(role, sync = true) {", reset_start)
+          new_reset = """async function resetFlame(sendToServer = true) {
+            state.isResettingFlame = true;
+            clearTimeout(state.finalizeTimer);
+            state.finalizeTimer = null;
+            state.flame = null;
+            state.tapTimes = [];
+            clearFlameVisuals();
+            resetFlameUi();
+            setRole('receive');
+          
+            if (!sendToServer || !state.roomCode) {
+              state.isResettingFlame = false;
+              return;
+            }
+          
+            try {
+              const data = await api('/api/flame', {
+                method: 'POST',
+                body: JSON.stringify({ roomCode: state.roomCode, deviceId: state.deviceId, flame: null })
+              });
+              state.isResettingFlame = false;
+              applyServerState(data.state);
+            } catch (error) {
+              state.isResettingFlame = false;
+              showToast(error.message);
+            }
+          }
+          
+          function clearFlameVisuals() {
+            state.flameParticles.length = 0;
+            elements.tapRipples.innerHTML = '';
+          
+            const canvas = elements.flameCanvas;
+            const context = canvas.getContext('2d');
+            context.save();
+            context.setTransform(1, 0, 0, 1, 0, 0);
+            context.clearRect(0, 0, canvas.width, canvas.height);
+            context.restore();
+          }
+          
+          function resetFlameUi(clearState = true) {
+            if (clearState) state.flame = null;
+            clearFlameVisuals();
+            elements.flameCard.classList.add('empty');
+            elements.flameCard.style.removeProperty('--flame-primary');
+            elements.flameCard.style.removeProperty('--flame-secondary');
+            elements.ignitionButton.classList.remove('lit');
+            elements.ignitionButton.style.removeProperty('--flame-primary');
+            elements.ignitionButton.style.removeProperty('--flame-secondary');
+            elements.flameName.textContent = '尚未點燃';
+            elements.flameDescription.textContent = '讓你的節奏決定火焰的顏色與性格。';
+            elements.flameSigil.textContent = '✦';
+            elements.resetFlameButton.disabled = true;
+            elements.tempoLabel.textContent = '-- BPM';
+            elements.rhythmDots.innerHTML = '';
+            elements.ignitionText.innerHTML = '點擊<br>點火';
+          }
+          
+          """
+          app = app[:reset_start] + new_reset + app[reset_end:]
+          
+          renderer_start = app.index("  function spawnParticle(")
+          renderer_end = app.index("  window.addEventListener('resize', getSize);", renderer_start)
+          new_renderer = """  function spawnParticle(cx, cy, radius, colors) {
+              state.flameParticles.push({
+                x: cx + (Math.random() - 0.5) * radius * 0.58,
+                y: cy + radius * 0.38 + Math.random() * 8,
+                vx: (Math.random() - 0.5) * 0.34,
+                vy: -(Math.random() * 0.9 + 0.45),
+                life: 1,
+                decay: Math.random() * 0.012 + 0.009,
+                r: Math.random() * 3 + 1,
+                color: colors[Math.floor(Math.random() * Math.min(colors.length, 3))]
+              });
+            }
+          
+            function drawFlameShape(cx, baseY, width, height, color, time, phase, alpha) {
+              const waveA = Math.sin(time * 0.0038 + phase) * width * 0.09;
+              const waveB = Math.sin(time * 0.0061 + phase * 1.7) * width * 0.06;
+              ctx.save();
+              ctx.globalAlpha = alpha;
+              ctx.beginPath();
+              ctx.moveTo(cx, baseY - height);
+              ctx.bezierCurveTo(
+                cx - width * 0.1 + waveA,
+                baseY - height * 0.72,
+                cx - width * 0.62 + waveB,
+                baseY - height * 0.3,
+                cx - width * 0.46,
+                baseY
+              );
+              ctx.quadraticCurveTo(cx, baseY + height * 0.08, cx + width * 0.46, baseY);
+              ctx.bezierCurveTo(
+                cx + width * 0.62 - waveA,
+                baseY - height * 0.34,
+                cx + width * 0.08 - waveB,
+                baseY - height * 0.68,
+                cx,
+                baseY - height
+              );
+              ctx.closePath();
+              ctx.fillStyle = color;
+              ctx.shadowBlur = 24;
+              ctx.shadowColor = color;
+              ctx.fill();
+              ctx.restore();
+            }
+          
+            function drawOrbHalo(cx, cy, radius, colors, time) {
+              const outerGlow = ctx.createRadialGradient(cx, cy, radius * 0.18, cx, cy, radius * 1.72);
+              outerGlow.addColorStop(0, `${colors[1]}1c`);
+              outerGlow.addColorStop(0.42, `${colors[2] || colors[1]}22`);
+              outerGlow.addColorStop(0.8, `${colors[3] || colors[2] || colors[1]}10`);
+              outerGlow.addColorStop(1, 'transparent');
+              ctx.fillStyle = outerGlow;
+              ctx.fillRect(cx - radius * 1.9, cy - radius * 1.9, radius * 3.8, radius * 3.8);
+          
+              ctx.save();
+              ctx.globalCompositeOperation = 'screen';
+              ctx.lineWidth = radius * 0.07;
+              ctx.strokeStyle = `${colors[1]}99`;
+              ctx.shadowBlur = 16;
+              ctx.shadowColor = colors[1];
+              ctx.beginPath();
+              ctx.arc(cx, cy, radius * (1.01 + Math.sin(time * 0.0024) * 0.012), 0, Math.PI * 2);
+              ctx.stroke();
+          
+              ctx.lineWidth = radius * 0.028;
+              ctx.strokeStyle = `${colors[0]}d0`;
+              ctx.shadowBlur = 14;
+              ctx.beginPath();
+              ctx.arc(cx, cy, radius * (0.78 + Math.sin(time * 0.0033 + 1.4) * 0.014), 0, Math.PI * 2);
+              ctx.stroke();
+              ctx.restore();
+            }
+          
+            function frame(time) {
+              const rect = getSize();
+              const width = rect.width;
+              const height = rect.height;
+              ctx.clearRect(0, 0, width, height);
+          
+              if (state.flame) {
+                const colors = state.flame.colors || FLAME_TYPES.ember.colors;
+                const cx = width / 2;
+                const cy = height * 0.53;
+                const radius = Math.min(width, height) * 0.29;
+                const baseY = cy + radius * 0.54;
+                const seedPhase = (state.flame.seed % 1000) / 100;
+          
+                drawOrbHalo(cx, cy, radius, colors, time);
+          
+                const orbFill = ctx.createRadialGradient(cx, cy - radius * 0.24, radius * 0.12, cx, cy, radius * 1.05);
+                orbFill.addColorStop(0, 'rgba(255,255,255,0.16)');
+                orbFill.addColorStop(0.24, `${colors[0]}22`);
+                orbFill.addColorStop(0.55, 'rgba(23, 15, 36, 0.8)');
+                orbFill.addColorStop(1, 'rgba(7, 5, 14, 0.97)');
+                ctx.fillStyle = orbFill;
+                ctx.beginPath();
+                ctx.arc(cx, cy, radius * 0.98, 0, Math.PI * 2);
+                ctx.fill();
+          
+                ctx.save();
+                ctx.beginPath();
+                ctx.arc(cx, cy, radius * 0.92, 0, Math.PI * 2);
+                ctx.clip();
+          
+                const innerGlow = ctx.createRadialGradient(cx, cy + radius * 0.08, radius * 0.1, cx, cy + radius * 0.14, radius * 0.98);
+                innerGlow.addColorStop(0, `${colors[1]}26`);
+                innerGlow.addColorStop(0.52, `${colors[2] || colors[1]}10`);
+                innerGlow.addColorStop(1, 'rgba(0,0,0,0)');
+                ctx.fillStyle = innerGlow;
+                ctx.fillRect(cx - radius, cy - radius, radius * 2, radius * 2);
+          
+                drawFlameShape(cx, baseY, radius * 0.7, radius * 0.98, colors[3] || colors[2], time, seedPhase, 0.38);
+                drawFlameShape(cx + Math.sin(time * 0.0022) * radius * 0.08, baseY - radius * 0.03, radius * 0.54, radius * 0.82, colors[2] || colors[1], time, seedPhase + 2.2, 0.62);
+                drawFlameShape(cx - Math.sin(time * 0.0034) * radius * 0.06, baseY - radius * 0.06, radius * 0.4, radius * 0.62, colors[1], time, seedPhase + 4.6, 0.88);
+                drawFlameShape(cx, baseY - radius * 0.1, radius * 0.24, radius * 0.42, colors[0], time, seedPhase + 6.3, 0.96);
+          
+                const core = ctx.createRadialGradient(cx, cy + radius * 0.12, radius * 0.03, cx, cy + radius * 0.2, radius * 0.46);
+                core.addColorStop(0, `${colors[0]}dd`);
+                core.addColorStop(0.42, `${colors[1]}6e`);
+                core.addColorStop(1, 'transparent');
+                ctx.fillStyle = core;
+                ctx.beginPath();
+                ctx.ellipse(cx, cy + radius * 0.22, radius * 0.34, radius * 0.22, 0, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+          
+                ctx.save();
+                ctx.strokeStyle = `${colors[0]}35`;
+                ctx.lineWidth = radius * 0.016;
+                ctx.beginPath();
+                ctx.arc(cx, cy, radius * 0.9, 0, Math.PI * 2);
+                ctx.stroke();
+                ctx.restore();
+          
+                if (Math.random() < 0.44) spawnParticle(cx, cy, radius, colors);
+              }
+          
+              state.flameParticles = state.flameParticles.filter((particle) => particle.life > 0);
+              state.flameParticles.forEach((particle) => {
+                particle.x += particle.vx;
+                particle.y += particle.vy;
+                particle.vx += Math.sin(time * 0.002 + particle.y) * 0.003;
+                particle.life -= particle.decay;
+                ctx.save();
+                ctx.globalAlpha = particle.life;
+                ctx.fillStyle = particle.color;
+                ctx.shadowBlur = 12;
+                ctx.shadowColor = particle.color;
+                ctx.beginPath();
+                ctx.arc(particle.x, particle.y, particle.r * particle.life, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+              });
+          
+              requestAnimationFrame(frame);
+            }
+          
+          """
+          app = app[:renderer_start] + new_renderer + app[renderer_end:]
+          app_path.write_text(app, encoding='utf-8')
+          
+          css = css_path.read_text(encoding='utf-8')
+          css_start = css.index('.ignition-stage::before {')
+          css_end = css.index('.ignition-text {', css_start)
+          new_css = """.ignition-stage::before {
+            content: "";
+            position: absolute;
+            width: 320px;
+            aspect-ratio: 1;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(255, 148, 82, 0.18), rgba(121, 58, 190, 0.08) 46%, transparent 72%);
+            filter: blur(10px);
+          }
+          
+          #flameCanvas {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+          }
+          
+          .ignition-button {
+            position: relative;
+            display: grid;
+            place-items: center;
+            width: min(54vw, 220px);
+            aspect-ratio: 1;
+            border: 0;
+            border-radius: 50%;
+            color: #fff6e7;
+            background: transparent;
+            cursor: pointer;
+            touch-action: manipulation;
+            user-select: none;
+            -webkit-user-select: none;
+            overflow: visible;
+          }
+          
+          .ignition-core,
+          .ignition-ring {
+            position: absolute;
+            inset: 0;
+            border-radius: 50%;
+          }
+          
+          .ignition-core {
+            border: 1px solid rgba(255, 238, 204, 0.14);
+            background:
+              radial-gradient(circle at 50% 33%, rgba(255, 255, 255, 0.15), transparent 16%),
+              radial-gradient(circle at 50% 45%, rgba(255, 181, 112, 0.08), rgba(30, 17, 48, 0.3) 46%, rgba(10, 7, 18, 0.95) 74%);
+            box-shadow:
+              inset 0 0 58px rgba(255, 255, 255, 0.04),
+              inset 0 -16px 42px rgba(8, 5, 15, 0.66),
+              0 0 0 10px rgba(255, 255, 255, 0.015),
+              0 0 84px rgba(255, 125, 64, 0.14);
+            transition: transform 140ms ease, filter 250ms ease, box-shadow 250ms ease, border-color 250ms ease;
+          }
+          
+          .ignition-core::before,
+          .ignition-core::after {
+            content: "";
+            position: absolute;
+            border-radius: 50%;
+            pointer-events: none;
+          }
+          
+          .ignition-core::before {
+            inset: 12%;
+            border: 1px solid rgba(255, 255, 255, 0.09);
+            box-shadow: inset 0 0 26px rgba(255, 255, 255, 0.04);
+          }
+          
+          .ignition-core::after {
+            inset: 17%;
+            background: radial-gradient(circle at 50% 30%, rgba(255, 245, 222, 0.18), rgba(255, 255, 255, 0.02) 28%, transparent 60%);
+            opacity: 0.85;
+          }
+          
+          .ignition-ring {
+            inset: -14px;
+            border: 1px solid rgba(255, 223, 176, 0.16);
+            box-shadow:
+              0 0 0 1px rgba(255, 255, 255, 0.025),
+              0 0 18px rgba(255, 175, 112, 0.12),
+              inset 0 0 26px rgba(255, 255, 255, 0.04);
+            animation: slow-spin 18s linear infinite;
+          }
+          
+          .ignition-button:active .ignition-core,
+          .ignition-button.tapped .ignition-core {
+            transform: scale(0.94);
+            filter: brightness(1.2);
+          }
+          
+          .ignition-button.lit .ignition-core {
+            border-color: color-mix(in srgb, var(--flame-primary, #ff9b45) 44%, white);
+            background:
+              radial-gradient(circle at 50% 30%, rgba(255, 255, 255, 0.22), transparent 14%),
+              radial-gradient(circle at 50% 48%, color-mix(in srgb, var(--flame-primary, #ff9b45) 13%, transparent), rgba(28, 17, 45, 0.36) 44%, rgba(8, 5, 14, 0.96) 74%);
+            box-shadow:
+              inset 0 0 70px color-mix(in srgb, var(--flame-primary, #ff9b45) 8%, transparent),
+              inset 0 -18px 44px rgba(5, 4, 13, 0.72),
+              0 0 0 10px rgba(255, 255, 255, 0.02),
+              0 0 115px color-mix(in srgb, var(--flame-primary, #ff9b45) 26%, transparent);
+          }
+          
+          .ignition-button.lit .ignition-ring {
+            border-color: color-mix(in srgb, var(--flame-primary, #ff9b45) 34%, rgba(255, 255, 255, 0.18));
+            box-shadow:
+              0 0 0 1px color-mix(in srgb, var(--flame-secondary, #ff533b) 18%, transparent),
+              0 0 26px color-mix(in srgb, var(--flame-primary, #ff9b45) 24%, transparent),
+              inset 0 0 30px color-mix(in srgb, var(--flame-secondary, #ff533b) 12%, transparent);
+          }
+          
+          """
+          css = css[:css_start] + new_css + css[css_end:]
+          css_path.write_text(css, encoding='utf-8')
+          
+          sw = sw_path.read_text(encoding='utf-8')
+          sw = sw.replace("fire-passing-shell-v1", "fire-passing-shell-v2")
+          sw_path.write_text(sw, encoding='utf-8')
+          PY
+          python /tmp/apply_flame_update.py
+          node --check public/app.js
+          node --check server.js
+      - name: Commit update
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add public/app.js public/styles.css public/service-worker.js
+          git rm .github/workflows/apply-flame-update.yml
+          git commit -m "Update circular flame orb and clear stale embers"
+          git push origin main
