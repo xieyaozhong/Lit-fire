@@ -1,6 +1,15 @@
 'use strict';
 
-const CACHE_NAME = 'fire-passing-shell-v19';
+const CACHE_NAME = 'fire-passing-shell-v20';
+const DISABLED_LEGACY_SCRIPTS = new Set([
+  '/core-special-flame-fix.js',
+  '/dual-special-flames.js',
+  '/dark-flame-extension.js',
+  '/rainbow-extension.js',
+  '/pink-meaning-extension.js',
+  '/blue-party-flame-extension.js'
+]);
+
 const APP_SHELL = [
   '/',
   '/index.html',
@@ -8,13 +17,7 @@ const APP_SHELL = [
   '/clean-ui.css?v=1',
   '/performance-core.js?v=1',
   '/stable-flame-engine.js?v=1',
-  '/core-special-flame-fix.js?v=1',
-  '/dual-special-flames.js?v=1',
-  '/dark-flame-extension.js?v=1',
-  '/rainbow-extension.js?v=1',
-  '/pink-meaning-extension.js?v=1',
   '/airdrop-transfer.js?v=1',
-  '/blue-party-flame-extension.js?v=1',
   '/app.js',
   '/persistent-flame.js?v=1',
   '/manifest.webmanifest',
@@ -35,7 +38,20 @@ self.addEventListener('activate', (event) => {
 
 self.addEventListener('fetch', (event) => {
   const requestUrl = new URL(event.request.url);
+
+  if (DISABLED_LEGACY_SCRIPTS.has(requestUrl.pathname)) {
+    event.respondWith(new Response("'use strict';", {
+      status: 200,
+      headers: {
+        'Content-Type': 'application/javascript; charset=utf-8',
+        'Cache-Control': 'no-store'
+      }
+    }));
+    return;
+  }
+
   if (requestUrl.pathname.startsWith('/api/')) return;
+
   event.respondWith(
     fetch(event.request)
       .then((response) => {
