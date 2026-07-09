@@ -1,0 +1,172 @@
+name: Fix second ignition race condition
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/fix-second-ignition.yml
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Apply state synchronization fix
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          app_path = Path('public/app.js')
+          sw_path = Path('public/service-worker.js')
+          app = app_path.read_text(encoding='utf-8')
+
+          app = app.replace(
+              "  isResettingFlame: false,\n  tapTimes: [],",
+              "  isResettingFlame: false,\n  flameRevision: 0,\n  ignoreEmptyServerUntil: 0,\n  tapTimes: [],",
+              1,
+          )
+
+          old_apply = """  const current = serverState.current;
+            if (current) {
+              const incomingFlame = current.flame || null;
+              const ignoreStaleFlame = state.isResettingFlame && incomingFlame;
+              const changed = JSON.stringify(incomingFlame) !== JSON.stringify(state.flame);
+              if (changed && !ignoreStaleFlame) {
+                clearFlameVisuals();
+                state.flame = incomingFlame;
+                if (state.flame) {
+                  renderFlame(state.flame, !initial);
+                } else {
+                  resetFlameUi(false);
+                }
+              }
+            }
+          """
+          new_apply = """  const current = serverState.current;
+            if (current) {
+              const incomingFlame = current.flame || null;
+              const ignoreStaleFlame = state.isResettingFlame && incomingFlame;
+              const ignoreStaleEmpty = !incomingFlame && state.flame && Date.now() < state.ignoreEmptyServerUntil;
+              const changed = JSON.stringify(incomingFlame) !== JSON.stringify(state.flame);
+              if (changed && !ignoreStaleFlame && !ignoreStaleEmpty) {
+                clearFlameVisuals();
+                state.flame = incomingFlame;
+                if (state.flame) {
+                  state.ignoreEmptyServerUntil = 0;
+                  renderFlame(state.flame, !initial);
+                } else {
+                  resetFlameUi(false);
+                }
+              }
+            }
+          """
+          if old_apply not in app:
+              raise SystemExit('applyServerState block not found')
+          app = app.replace(old_apply, new_apply, 1)
+
+          old_finalize = """  clearFlameVisuals();
+            state.isResettingFlame = false;
+            state.flame = flame;
+            renderFlame(flame, true);
+            setRole('send');
+            elements.ignitionText.innerHTML = '火種已成';
+            navigator.vibrate?.([35, 40, 80]);
+          
+            try {
+              await api('/api/flame', {
+                method: 'POST',
+                body: JSON.stringify({ roomCode: state.roomCode, deviceId: state.deviceId, flame })
+              });
+              setTransferStatus('idle', '火焰已準備好', '讓另一支手機加入同一房間，準備進行傳火。', '🔥');
+            } catch (error) {
+              showToast(`火焰已生成，但同步失敗：${error.message}`);
+            }
+          """
+          new_finalize = """  const flameRevision = ++state.flameRevision;
+            clearFlameVisuals();
+            state.isResettingFlame = false;
+            state.ignoreEmptyServerUntil = Date.now() + 10000;
+            state.flame = flame;
+            renderFlame(flame, true);
+            setRole('send');
+            elements.ignitionText.innerHTML = '火種已成';
+            navigator.vibrate?.([35, 40, 80]);
+          
+            try {
+              await api('/api/flame', {
+                method: 'POST',
+                body: JSON.stringify({ roomCode: state.roomCode, deviceId: state.deviceId, flame })
+              });
+              if (flameRevision !== state.flameRevision) return;
+              state.ignoreEmptyServerUntil = Date.now() + 1800;
+              setTransferStatus('idle', '火焰已準備好', '讓另一支手機加入同一房間，準備進行傳火。', '🔥');
+            } catch (error) {
+              if (flameRevision !== state.flameRevision) return;
+              showToast(`火焰已生成，但同步失敗：${error.message}`);
+            }
+          """
+          if old_finalize not in app:
+              raise SystemExit('finalize block not found')
+          app = app.replace(old_finalize, new_finalize, 1)
+
+          reset_start = app.index("async function resetFlame(sendToServer = true) {")
+          reset_end = app.index("function clearFlameVisuals()", reset_start)
+          new_reset = """async function resetFlame(sendToServer = true) {
+            const resetRevision = ++state.flameRevision;
+            state.isResettingFlame = true;
+            state.ignoreEmptyServerUntil = 0;
+            clearTimeout(state.finalizeTimer);
+            state.finalizeTimer = null;
+            state.flame = null;
+            state.tapTimes = [];
+            clearFlameVisuals();
+            resetFlameUi();
+            setRole('receive');
+          
+            if (!sendToServer || !state.roomCode) {
+              if (resetRevision === state.flameRevision) state.isResettingFlame = false;
+              return;
+            }
+          
+            try {
+              const data = await api('/api/flame', {
+                method: 'POST',
+                body: JSON.stringify({ roomCode: state.roomCode, deviceId: state.deviceId, flame: null })
+              });
+              if (resetRevision !== state.flameRevision || state.flame) return;
+              state.isResettingFlame = false;
+              applyServerState(data.state);
+            } catch (error) {
+              if (resetRevision !== state.flameRevision) return;
+              state.isResettingFlame = false;
+              showToast(error.message);
+            }
+          }
+          
+          """
+          app = app[:reset_start] + new_reset + app[reset_end:]
+
+          app_path.write_text(app, encoding='utf-8')
+
+          sw = sw_path.read_text(encoding='utf-8')
+          sw = sw.replace('fire-passing-shell-v3', 'fire-passing-shell-v4')
+          sw_path.write_text(sw, encoding='utf-8')
+          PY
+          node --check public/app.js
+          node --check server.js
+      - name: Commit fix
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add public/app.js public/service-worker.js
+          git rm .github/workflows/fix-second-ignition.yml
+          git commit -m "Keep second ignition alive after reset"
+          git push origin main
