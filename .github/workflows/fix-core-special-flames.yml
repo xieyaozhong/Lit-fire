@@ -1,0 +1,259 @@
+name: Fix core special flame generation
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/fix-core-special-flames.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Integrate special flames into core classifier
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          app_path = Path('public/app.js')
+          index_path = Path('public/index.html')
+          sw_path = Path('public/service-worker.js')
+
+          app = app_path.read_text(encoding='utf-8')
+
+          old_types = """  spark: {
+            name: '星火',
+            description: '帶有切分與驚喜的節奏，迸發金白色的傳承火種。',
+            colors: ['#ffffff', '#ffe47d', '#ff9d42', '#e64535'],
+            sigil: '✦'
+          }
+          };"""
+          new_types = """  spark: {
+            name: '星火',
+            description: '帶有切分與驚喜的節奏，迸發金白色的傳承火種。',
+            colors: ['#ffffff', '#ffe47d', '#ff9d42', '#e64535'],
+            sigil: '✦'
+          },
+          dark: {
+            name: '黯火',
+            description: '緩慢兩拍、長久沉默後突然收束，凝成吞噬光線的紫黑火焰；象徵直面陰影、沉靜蓄力，以及在無光處仍守住自己的核心。',
+            colors: ['#e9e4ff', '#7660b8', '#2a1d45', '#050308'],
+            sigil: '◈',
+            symbolicMeaning: '直面陰影、沉靜蓄力，以及在無光處仍守住自己的核心。'
+          },
+          dawn: {
+            name: '破曉火',
+            description: '前四下沉穩蓄光，後四下突然加速，讓金白火焰穿過夜色向上升起；象徵重新出發、跨越轉折，以及相信黎明終會到來。',
+            colors: ['#fffdf0', '#ffe08a', '#ff9f5a', '#d84a32'],
+            sigil: '☼',
+            symbolicMeaning: '重新出發、跨越轉折，以及相信黎明終會到來。'
+          },
+          echo: {
+            name: '回聲火',
+            description: '三組成對的短拍在相近停頓間彼此回應，化成銀藍色同心光波；象徵記憶、回應，以及真心終會被另一顆心聽見。',
+            colors: ['#f7fbff', '#b9ddff', '#7f76ff', '#30236f'],
+            sigil: '◎',
+            symbolicMeaning: '記憶、回應，以及真心終會被另一顆心聽見。'
+          }
+          };"""
+          if old_types not in app:
+              raise SystemExit('FLAME_TYPES anchor not found')
+          app = app.replace(old_types, new_types, 1)
+
+          old_timer = """  clearTimeout(state.finalizeTimer);
+            state.finalizeTimer = setTimeout(finalizeRhythm, 1050);
+          }"""
+          new_timer = """  clearTimeout(state.finalizeTimer);
+            state.finalizeTimer = setTimeout(finalizeRhythm, getRhythmFinalizeDelay());
+          }
+          
+          function getRhythmFinalizeDelay() {
+            const intervals = getIntervals();
+            const tapCount = state.tapTimes.length;
+          
+            if (tapCount === 3 && intervals.length === 2) {
+              const [first, second] = intervals;
+              const pairRatio = Math.max(first, second) / Math.max(1, Math.min(first, second));
+              const potentialDarkOpening = first >= 280 && first <= 850
+                && second >= 280 && second <= 850
+                && pairRatio <= 1.65;
+              if (potentialDarkOpening) return 1850;
+            }
+          
+            if ((tapCount === 2 || tapCount === 4) && intervals.length) {
+              const lastInterval = intervals.at(-1);
+              if (lastInterval >= 55 && lastInterval <= 340) return 1350;
+            }
+          
+            return 1050;
+          }"""
+          if old_timer not in app:
+              raise SystemExit('registerTap timer anchor not found')
+          app = app.replace(old_timer, new_timer, 1)
+
+          old_classifier = """function classifyRhythm(intervals) {
+            const avg = mean(intervals);
+            const std = standardDeviation(intervals);
+            const variation = avg ? std / avg : 0;
+          
+            if (avg < 290) return 'azure';
+            if (avg > 720) return 'dream';
+            if (variation < 0.13) return 'ember';
+          
+            const alternationScores = [];
+            for (let index = 1; index < intervals.length; index += 1) {
+              alternationScores.push(Math.abs(intervals[index] - intervals[index - 1]) / Math.max(intervals[index], intervals[index - 1]));
+            }
+            if (variation > 0.42 || mean(alternationScores) > 0.38) return 'forest';
+            return 'spark';
+          }"""
+          new_classifier = """function rhythmSpreadRatio(values) {
+            return Math.max(...values) / Math.max(1, Math.min(...values));
+          }
+          
+          function isDarkRhythmCore(intervals) {
+            if (!Array.isArray(intervals) || intervals.length !== 5) return false;
+            const [first, second, silence, fourth, fifth] = intervals;
+            const opening = mean([first, second]);
+            const ending = mean([fourth, fifth]);
+            return opening >= 280
+              && opening <= 820
+              && ending >= 55
+              && ending <= 330
+              && rhythmSpreadRatio([first, second]) <= 1.65
+              && rhythmSpreadRatio([fourth, fifth]) <= 1.7
+              && silence >= Math.max(760, opening * 1.45, ending * 2.8)
+              && silence <= 1750
+              && ending <= opening * 0.68;
+          }
+          
+          function isDawnRhythmCore(intervals) {
+            if (!Array.isArray(intervals) || intervals.length !== 7) return false;
+            const slow = intervals.slice(0, 3);
+            const fast = intervals.slice(3);
+            const slowAverage = mean(slow);
+            const fastAverage = mean(fast);
+            return slowAverage >= 300
+              && slowAverage <= 820
+              && fastAverage >= 50
+              && fastAverage <= 300
+              && rhythmSpreadRatio(slow) <= 1.65
+              && rhythmSpreadRatio(fast) <= 1.75
+              && fastAverage <= slowAverage * 0.58
+              && Math.max(...fast) <= Math.min(...slow) * 0.82;
+          }
+          
+          function isEchoRhythmCore(intervals) {
+            if (!Array.isArray(intervals) || intervals.length !== 5) return false;
+            const shortBeats = [intervals[0], intervals[2], intervals[4]];
+            const pauses = [intervals[1], intervals[3]];
+            const shortAverage = mean(shortBeats);
+            const pauseAverage = mean(pauses);
+            return shortAverage >= 55
+              && shortAverage <= 340
+              && pauseAverage >= 320
+              && pauseAverage <= 1100
+              && rhythmSpreadRatio(shortBeats) <= 1.75
+              && rhythmSpreadRatio(pauses) <= 1.55
+              && pauseAverage >= shortAverage * 1.8;
+          }
+          
+          function classifyRhythm(intervals) {
+            if (isDarkRhythmCore(intervals)) return 'dark';
+            if (isDawnRhythmCore(intervals)) return 'dawn';
+            if (isEchoRhythmCore(intervals)) return 'echo';
+          
+            const avg = mean(intervals);
+            const std = standardDeviation(intervals);
+            const variation = avg ? std / avg : 0;
+          
+            if (avg < 290) return 'azure';
+            if (avg > 720) return 'dream';
+            if (variation < 0.13) return 'ember';
+          
+            const alternationScores = [];
+            for (let index = 1; index < intervals.length; index += 1) {
+              alternationScores.push(Math.abs(intervals[index] - intervals[index - 1]) / Math.max(intervals[index], intervals[index - 1]));
+            }
+            if (variation > 0.42 || mean(alternationScores) > 0.38) return 'forest';
+            return 'spark';
+          }"""
+          if old_classifier not in app:
+              raise SystemExit('classifyRhythm anchor not found')
+          app = app.replace(old_classifier, new_classifier, 1)
+
+          old_flame_fields = """    bornAt: Date.now(),
+            origin: state.deviceName
+          };"""
+          new_flame_fields = """    bornAt: Date.now(),
+            origin: state.deviceName,
+            specialFlame: ['dark', 'dawn', 'echo'].includes(type),
+            symbolicMeaning: meta.symbolicMeaning || undefined
+          };"""
+          if old_flame_fields not in app:
+              raise SystemExit('flame fields anchor not found')
+          app = app.replace(old_flame_fields, new_flame_fields, 1)
+
+          old_render = """  elements.flameCard.classList.remove('empty');
+            elements.flameCard.style.setProperty('--flame-primary', colors[1] || colors[0]);
+            elements.flameCard.style.setProperty('--flame-secondary', colors[2] || colors[1]);
+            elements.ignitionButton.classList.add('lit');
+            elements.ignitionButton.style.setProperty('--flame-primary', colors[1] || colors[0]);"""
+          new_render = """  elements.flameCard.classList.remove('empty');
+            elements.flameCard.dataset.flameType = flame.type || '';
+            elements.flameCard.style.setProperty('--flame-primary', colors[1] || colors[0]);
+            elements.flameCard.style.setProperty('--flame-secondary', colors[2] || colors[1]);
+            elements.ignitionButton.classList.add('lit');
+            elements.ignitionButton.dataset.flameType = flame.type || '';
+            elements.ignitionButton.style.setProperty('--flame-primary', colors[1] || colors[0]);"""
+          if old_render not in app:
+              raise SystemExit('renderFlame anchor not found')
+          app = app.replace(old_render, new_render, 1)
+
+          old_reset = """  elements.flameCard.classList.add('empty');
+            elements.flameCard.style.removeProperty('--flame-primary');
+            elements.flameCard.style.removeProperty('--flame-secondary');
+            elements.ignitionButton.classList.remove('lit');
+            elements.ignitionButton.style.removeProperty('--flame-primary');"""
+          new_reset = """  elements.flameCard.classList.add('empty');
+            delete elements.flameCard.dataset.flameType;
+            elements.flameCard.style.removeProperty('--flame-primary');
+            elements.flameCard.style.removeProperty('--flame-secondary');
+            elements.ignitionButton.classList.remove('lit');
+            delete elements.ignitionButton.dataset.flameType;
+            elements.ignitionButton.style.removeProperty('--flame-primary');"""
+          if old_reset not in app:
+              raise SystemExit('resetFlameUi anchor not found')
+          app = app.replace(old_reset, new_reset, 1)
+
+          app_path.write_text(app, encoding='utf-8')
+
+          index = index_path.read_text(encoding='utf-8')
+          index = index.replace('<script src="/app.js" defer></script>', '<script src="/app.js?v=18" defer></script>')
+          index_path.write_text(index, encoding='utf-8')
+
+          sw = sw_path.read_text(encoding='utf-8')
+          sw = sw.replace("fire-passing-shell-v17", "fire-passing-shell-v18")
+          sw = sw.replace("'/app.js',", "'/app.js?v=18',")
+          sw_path.write_text(sw, encoding='utf-8')
+          PY
+          node --check public/app.js
+          node --check public/dual-special-flames.js
+          node --check public/dark-flame-extension.js
+      - name: Commit core fix
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add public/app.js public/index.html public/service-worker.js
+          git rm .github/workflows/fix-core-special-flames.yml
+          git commit -m "Integrate dark dawn and echo flames into core"
+          git push origin main
