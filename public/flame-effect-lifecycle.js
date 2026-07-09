@@ -151,17 +151,25 @@
     card.style.setProperty('--flame-secondary', secondary);
   }
 
+  function enforceInactiveUi() {
+    button.removeAttribute('data-flame-type');
+    card.removeAttribute('data-flame-type');
+    button.removeAttribute('data-effect-type');
+    card.removeAttribute('data-effect-type');
+
+    if (!button.classList.contains('lit')) {
+      if (nameNode) nameNode.textContent = '尚未點燃';
+      if (descriptionNode) descriptionNode.textContent = '讓你的節奏決定火焰的顏色與性格。';
+      if (sigilNode) sigilNode.textContent = '✦';
+    }
+  }
+
   function enforceActiveFlame() {
     if (enforcing) return;
     enforcing = true;
 
     if (!activeType || !activeFlame) {
-      if (button.dataset.flameType || card.dataset.flameType) {
-        button.removeAttribute('data-flame-type');
-        card.removeAttribute('data-flame-type');
-      }
-      button.removeAttribute('data-effect-type');
-      card.removeAttribute('data-effect-type');
+      enforceInactiveUi();
       enforcing = false;
       return;
     }
@@ -208,6 +216,7 @@
     protectActiveUntil = 0;
     suppressIncomingUntil = protectFromStale ? Date.now() + 3200 : 0;
     clearEffectSurface();
+    enforceInactiveUi();
   }
 
   function currentFlameFromPayload(payload) {
@@ -241,12 +250,6 @@
 
   const observer = new MutationObserver(() => {
     if (enforcing) return;
-    if (!button.classList.contains('lit') && activeType) {
-      activeFlame = null;
-      activeType = '';
-      clearEffectSurface();
-      return;
-    }
     queueEnforce();
   });
 
