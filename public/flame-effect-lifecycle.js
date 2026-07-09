@@ -48,10 +48,9 @@
   let epoch = 0;
   let activeFlame = null;
   let activeType = '';
-  let protectActiveUntil = 0;
-  let suppressIncomingUntil = 0;
-  let enforcing = false;
-  let enforceQueued = false;
+  let ignoreStaleUntil = 0;
+  let resetFrameA = 0;
+  let resetFrameB = 0;
 
   const style = document.createElement('style');
   style.textContent = `
@@ -83,11 +82,13 @@
     context.restore();
   }
 
-  function restartAnimationTree() {
+  function restartAnimations() {
+    cancelAnimationFrame(resetFrameA);
+    cancelAnimationFrame(resetFrameB);
     document.documentElement.classList.add('flame-effects-resetting');
-    requestAnimationFrame(() => {
+    resetFrameA = requestAnimationFrame(() => {
       void button.offsetWidth;
-      requestAnimationFrame(() => {
+      resetFrameB = requestAnimationFrame(() => {
         document.documentElement.classList.remove('flame-effects-resetting');
       });
     });
@@ -100,7 +101,9 @@
       button.querySelector('.ignition-ring'),
       button.querySelector('.ignition-core'),
       button.querySelector('#persistentFlameCanvas'),
-      ...button.querySelectorAll('.thunder-strike-layer, .thunder-bolt, .thunder-arc, .thunder-impact-core, .thunder-impact-wave, .dawn-horizon-glow, .dawn-sun-disc')
+      ...button.querySelectorAll(
+        '.thunder-strike-layer, .thunder-bolt, .thunder-arc, .thunder-impact-core, .thunder-impact-wave, .dawn-horizon-glow, .dawn-sun-disc'
+      )
     ].filter(Boolean);
 
     nodes.forEach((node) => {
@@ -111,8 +114,7 @@
     });
   }
 
-  function clearEffectSurface({ clearFlameCanvas = true } = {}) {
-    enforcing = true;
+  function clearSurface({ clearCanvases = true } = {}) {
     button.removeAttribute('data-flame-type');
     card.removeAttribute('data-flame-type');
     button.removeAttribute('data-effect-type');
@@ -129,15 +131,14 @@
     button.style.removeProperty('--flame-secondary');
     card.style.removeProperty('--flame-primary');
     card.style.removeProperty('--flame-secondary');
-
     clearTransientStyles();
-    if (clearFlameCanvas) {
+
+    if (clearCanvases) {
       clearCanvas(document.getElementById('persistentFlameCanvas'));
       clearCanvas(document.getElementById('flameCanvas'));
     }
     if (ripples) ripples.innerHTML = '';
-    enforcing = false;
-    restartAnimationTree();
+    restartAnimations();
   }
 
   function setColors(flame) {
@@ -151,72 +152,43 @@
     card.style.setProperty('--flame-secondary', secondary);
   }
 
-  function enforceInactiveUi() {
-    button.removeAttribute('data-flame-type');
-    card.removeAttribute('data-flame-type');
-    button.removeAttribute('data-effect-type');
-    card.removeAttribute('data-effect-type');
-
-    if (!button.classList.contains('lit')) {
-      if (nameNode) nameNode.textContent = '尚未點燃';
-      if (descriptionNode) descriptionNode.textContent = '讓你的節奏決定火焰的顏色與性格。';
-      if (sigilNode) sigilNode.textContent = '✦';
-    }
-  }
-
-  function enforceActiveFlame() {
-    if (enforcing) return;
-    enforcing = true;
-
-    if (!activeType || !activeFlame) {
-      enforceInactiveUi();
-      enforcing = false;
-      return;
-    }
-
+  function applyActiveUi() {
+    if (!activeFlame || !activeType) return;
     const meta = META[activeType] || {};
-    button.dataset.flameType = activeType;
-    card.dataset.flameType = activeType;
-    button.dataset.effectType = activeType;
-    card.dataset.effectType = activeType;
+
+    if (button.dataset.flameType !== activeType) button.dataset.flameType = activeType;
+    if (card.dataset.flameType !== activeType) card.dataset.flameType = activeType;
+    if (button.dataset.effectType !== activeType) button.dataset.effectType = activeType;
+    if (card.dataset.effectType !== activeType) card.dataset.effectType = activeType;
     button.dataset.effectEpoch = String(epoch);
     card.dataset.effectEpoch = String(epoch);
     setColors(activeFlame);
 
-    if (nameNode) nameNode.textContent = activeFlame.name || meta.name || nameNode.textContent;
-    if (descriptionNode && activeFlame.description) descriptionNode.textContent = activeFlame.description;
-    if (sigilNode && meta.sigil) sigilNode.textContent = meta.sigil;
-
-    enforcing = false;
-  }
-
-  function queueEnforce() {
-    if (enforceQueued) return;
-    enforceQueued = true;
-    queueMicrotask(() => {
-      enforceQueued = false;
-      enforceActiveFlame();
-    });
+    const nextName = activeFlame.name || meta.name;
+    const nextSigil = meta.sigil;
+    if (nameNode && nextName && nameNode.textContent !== nextName) nameNode.textContent = nextName;
+    if (descriptionNode && activeFlame.description && descriptionNode.textContent !== activeFlame.description) {
+      descriptionNode.textContent = activeFlame.description;
+    }
+    if (sigilNode && nextSigil && sigilNode.textContent !== nextSigil) sigilNode.textContent = nextSigil;
   }
 
   function activate(flame, { restart = false } = {}) {
     if (!flame || typeof flame !== 'object' || !flame.type) return;
     const changed = activeType !== flame.type || activeFlame?.id !== flame.id;
-    if (changed || restart) clearEffectSurface({ clearFlameCanvas: false });
+    if (changed || restart) clearSurface({ clearCanvases: false });
     activeFlame = { ...flame };
     activeType = flame.type;
-    protectActiveUntil = Date.now() + 3200;
-    enforceActiveFlame();
+    ignoreStaleUntil = 0;
+    applyActiveUi();
   }
 
   function deactivate({ protectFromStale = true } = {}) {
     epoch += 1;
     activeFlame = null;
     activeType = '';
-    protectActiveUntil = 0;
-    suppressIncomingUntil = protectFromStale ? Date.now() + 3200 : 0;
-    clearEffectSurface();
-    enforceInactiveUi();
+    ignoreStaleUntil = protectFromStale ? Date.now() + 3200 : 0;
+    clearSurface();
   }
 
   function currentFlameFromPayload(payload) {
@@ -225,49 +197,22 @@
     return undefined;
   }
 
-  function hasCurrentState(payload) {
-    return Boolean(payload?.state?.current || payload?.current);
-  }
-
   function applyResponseState(payload, requestEpoch) {
-    if (!hasCurrentState(payload)) return;
     const flame = currentFlameFromPayload(payload);
+    if (flame === undefined) return;
 
     if (flame) {
-      if (Date.now() < suppressIncomingUntil && requestEpoch !== epoch) return;
-      suppressIncomingUntil = 0;
+      if (Date.now() < ignoreStaleUntil && requestEpoch !== epoch) return;
       activate(flame);
       return;
     }
 
-    if (activeFlame && Date.now() < protectActiveUntil) return;
     if (requestEpoch !== epoch && activeFlame) return;
     deactivate({ protectFromStale: false });
   }
 
   resetButton?.addEventListener('click', () => deactivate(), true);
   leaveButton?.addEventListener('click', () => deactivate({ protectFromStale: false }), true);
-
-  const observer = new MutationObserver(() => {
-    if (enforcing) return;
-    queueEnforce();
-  });
-
-  observer.observe(button, {
-    attributes: true,
-    attributeFilter: ['class', 'style', 'data-flame-type', 'data-effect-type'],
-    subtree: true,
-    childList: true
-  });
-  observer.observe(card, {
-    attributes: true,
-    attributeFilter: ['class', 'style', 'data-flame-type', 'data-effect-type'],
-    subtree: true,
-    childList: true
-  });
-  if (nameNode) observer.observe(nameNode, { childList: true, subtree: true, characterData: true });
-  if (descriptionNode) observer.observe(descriptionNode, { childList: true, subtree: true, characterData: true });
-  if (sigilNode) observer.observe(sigilNode, { childList: true, subtree: true, characterData: true });
 
   window.fetch = async (input, init = {}) => {
     let requestEpoch = epoch;
@@ -278,7 +223,6 @@
         const body = JSON.parse(init.body);
         requestEpoch = ++epoch;
         if (body.flame && typeof body.flame === 'object') {
-          suppressIncomingUntil = 0;
           activate(body.flame, { restart: true });
         } else if (body.flame === null) {
           deactivate();
