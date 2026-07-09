@@ -1,6 +1,6 @@
 'use strict';
 
-const CACHE_NAME = 'fire-passing-shell-v25';
+const CACHE_NAME = 'fire-passing-shell-v26';
 const DISABLED_LEGACY_SCRIPTS = new Set([
   '/stable-flame-engine.js',
   '/core-special-flame-fix.js',
@@ -17,6 +17,7 @@ const APP_SHELL = [
   '/styles.css',
   '/clean-ui.css?v=1',
   '/performance-core.js?v=1',
+  '/flame-meaning-texts-v2.js?v=1',
   '/blue-party-seven-tap.js?v=1',
   '/stable-flame-engine-v2.js?v=1',
   '/dawn-sunrise-animation.js?v=1',
