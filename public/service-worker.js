@@ -1,6 +1,6 @@
 'use strict';
 
-const CACHE_NAME = 'fire-passing-shell-v36';
+const CACHE_NAME = 'fire-passing-shell-v37';
 const DISABLED_LEGACY_SCRIPTS = new Set([
   '/stable-flame-engine.js',
   '/stable-flame-engine-v2.js',
@@ -16,7 +16,9 @@ const DISABLED_LEGACY_SCRIPTS = new Set([
   '/pure-spark-ten-tap.js',
   '/dawn-rising-rhythm.js',
   '/flame-tap-priority-router.js',
-  '/flame-effect-lifecycle.js'
+  '/flame-effect-lifecycle.js',
+  '/flame-rarity-engine.js',
+  '/flame-ui-safety.js'
 ]);
 
 const APP_SHELL = [
@@ -26,8 +28,7 @@ const APP_SHELL = [
   '/clean-ui.css?v=1',
   '/performance-core.js?v=1',
   '/flame-meaning-texts-v2.js?v=1',
-  '/flame-rarity-engine.js?v=2',
-  '/flame-ui-safety.js?v=1',
+  '/flame-rarity-engine-v2.js?v=1',
   '/thunder-strike-animation.js?v=1',
   '/dawn-sunrise-animation.js?v=1',
   '/airdrop-transfer.js?v=1',
