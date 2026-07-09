@@ -1,0 +1,17 @@
+{
+  "name": "傳火計畫",
+  "short_name": "傳火",
+  "description": "用節奏點燃火焰，再透過手機碰撞傳給另一個人。",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#090711",
+  "theme_color": "#120d1f",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

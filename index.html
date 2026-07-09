@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
+  <meta name="theme-color" content="#120d1f" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="description" content="用點擊節奏點燃獨一無二的火焰，再透過手機碰撞把火傳給另一個人。" />
+  <title>傳火計畫</title>
+  <link rel="manifest" href="/manifest.webmanifest" />
+  <link rel="icon" href="/icon.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <canvas id="ambientCanvas" aria-hidden="true"></canvas>
+
+  <main class="app-shell">
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">PASS THE FLAME</p>
+        <h1>傳火計畫</h1>
+      </div>
+      <button id="helpButton" class="icon-button" type="button" aria-label="查看說明">?</button>
+    </header>
+
+    <section id="joinPanel" class="panel join-panel">
+      <div class="section-heading">
+        <span class="step">01</span>
+        <div>
+          <h2>進入火種房間</h2>
+          <p>兩台手機加入同一組代碼，才可以互相傳火。</p>
+        </div>
+      </div>
+
+      <label class="field">
+        <span>你的名字</span>
+        <input id="nameInput" maxlength="20" autocomplete="nickname" placeholder="例如：星火旅人" />
+      </label>
+
+      <label class="field">
+        <span>房間代碼</span>
+        <input id="roomInput" maxlength="5" inputmode="text" autocomplete="off" placeholder="留空即可建立新房間" />
+      </label>
+
+      <div class="button-row">
+        <button id="createRoomButton" class="primary-button" type="button">建立房間</button>
+        <button id="joinRoomButton" class="secondary-button" type="button">加入房間</button>
+      </div>
+      <p id="joinMessage" class="inline-message" role="status"></p>
+    </section>
+
+    <section id="experiencePanel" class="experience hidden">
+      <section class="room-strip panel compact-panel">
+        <div>
+          <span class="mini-label">火種房間</span>
+          <strong id="roomCodeLabel">-----</strong>
+        </div>
+        <div class="room-actions">
+          <span id="connectionBadge" class="badge">連線中</span>
+          <button id="shareRoomButton" class="small-button" type="button">分享</button>
+          <button id="leaveRoomButton" class="small-button ghost" type="button">離開</button>
+        </div>
+      </section>
+
+      <section class="panel ignition-panel">
+        <div class="section-heading">
+          <span class="step">02</span>
+          <div>
+            <h2>用節奏點燃你的火</h2>
+            <p>在中央圓形區連續點擊至少 3 次。快、慢、穩定或切分節奏，都會生成不同火焰。</p>
+          </div>
+        </div>
+
+        <div id="ignitionStage" class="ignition-stage">
+          <canvas id="flameCanvas" aria-hidden="true"></canvas>
+          <button id="ignitionButton" class="ignition-button" type="button" aria-label="點擊點火">
+            <span class="ignition-core"></span>
+            <span class="ignition-ring"></span>
+            <span id="ignitionText" class="ignition-text">點擊<br />點火</span>
+          </button>
+          <div id="tapRipples" class="tap-ripples" aria-hidden="true"></div>
+        </div>
+
+        <div class="rhythm-readout">
+          <div>
+            <span class="mini-label">節奏軌跡</span>
+            <div id="rhythmDots" class="rhythm-dots" aria-label="目前點擊節奏"></div>
+          </div>
+          <div class="tempo-box">
+            <span class="mini-label">估算速度</span>
+            <strong id="tempoLabel">-- BPM</strong>
+          </div>
+        </div>
+
+        <div id="flameCard" class="flame-card empty">
+          <div class="flame-sigil" id="flameSigil">✦</div>
+          <div>
+            <span class="mini-label">目前火種</span>
+            <h3 id="flameName">尚未點燃</h3>
+            <p id="flameDescription">讓你的節奏決定火焰的顏色與性格。</p>
+          </div>
+          <button id="resetFlameButton" class="small-button ghost" type="button" disabled>熄滅</button>
+        </div>
+      </section>
+
+      <section class="panel transfer-panel">
+        <div class="section-heading">
+          <span class="step">03</span>
+          <div>
+            <h2>讓兩支手機輕碰傳火</h2>
+            <p>兩台手機都開啟動作感測，選擇傳火或接火，並在 1.7 秒內輕碰或同時晃動。</p>
+          </div>
+        </div>
+
+        <div class="role-selector" role="group" aria-label="傳火角色">
+          <button id="sendRoleButton" class="role-button active" data-role="send" type="button">
+            <span>🔥</span>
+            <strong>我要傳火</strong>
+            <small>手機需先擁有火焰</small>
+          </button>
+          <button id="receiveRoleButton" class="role-button" data-role="receive" type="button">
+            <span>🫴</span>
+            <strong>我要接火</strong>
+            <small>準備接收相同火焰</small>
+          </button>
+        </div>
+
+        <div class="motion-card">
+          <div class="motion-visual">
+            <div id="motionOrb" class="motion-orb"></div>
+            <div>
+              <span class="mini-label">碰撞感測</span>
+              <strong id="motionStatus">尚未啟用</strong>
+              <p id="motionHint">iPhone 需點擊按鈕後允許「動作與方向」權限。</p>
+            </div>
+          </div>
+          <button id="enableMotionButton" class="primary-button motion-button" type="button">啟用動作感測</button>
+        </div>
+
+        <label class="sensitivity-row">
+          <span>碰撞靈敏度</span>
+          <input id="sensitivityInput" type="range" min="4" max="18" step="1" value="8" />
+          <output id="sensitivityOutput">8</output>
+        </label>
+
+        <div class="button-row transfer-actions">
+          <button id="simulateBumpButton" class="secondary-button" type="button">模擬碰撞</button>
+          <button id="copyLinkButton" class="secondary-button" type="button">複製房間連結</button>
+        </div>
+
+        <div id="transferStatus" class="transfer-status idle" role="status">
+          <span class="status-icon">◎</span>
+          <div>
+            <strong>等待另一支手機</strong>
+            <p>加入同一房間後，即可開始傳火。</p>
+          </div>
+        </div>
+
+        <div class="people-list-wrap">
+          <span class="mini-label">房間中的旅人</span>
+          <div id="peopleList" class="people-list"></div>
+        </div>
+      </section>
+    </section>
+  </main>
+
+  <dialog id="helpDialog" class="help-dialog">
+    <button id="closeHelpButton" class="dialog-close" type="button" aria-label="關閉">×</button>
+    <p class="eyebrow">HOW IT WORKS</p>
+    <h2>傳火流程</h2>
+    <ol>
+      <li>第一支手機建立房間，第二支手機輸入相同代碼加入。</li>
+      <li>在中央圓形區用節奏點擊，停頓約 1 秒後生成火焰。</li>
+      <li>有火焰的人選「我要傳火」，另一人選「我要接火」。</li>
+      <li>兩台手機都啟用動作感測，再輕碰手機邊緣或同時做一下短促晃動。</li>
+    </ol>
+    <p class="dialog-note">手機瀏覽器無法直接以 NFC 進行瀏覽器對瀏覽器傳輸，因此本專案採用「碰撞感測＋同房間伺服器配對」完成實際效果。</p>
+  </dialog>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <script src="/app.js" defer></script>
+</body>
+</html>
