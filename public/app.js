@@ -336,6 +336,13 @@ function escapeHtml(value) {
 
 function registerTap(event) {
   event.preventDefault();
+
+  if (state.flame || state.isResettingFlame) {
+    navigator.vibrate?.([25, 35, 25]);
+    showToast(state.isResettingFlame ? '火種正在熄滅，請稍候' : '請先熄滅目前火種');
+    return;
+  }
+
   const now = performance.now();
   const lastTap = state.tapTimes.at(-1);
   if (lastTap && now - lastTap > 1700) state.tapTimes = [];
