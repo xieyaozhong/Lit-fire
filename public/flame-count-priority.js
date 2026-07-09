@@ -28,6 +28,48 @@
     description: '四段近乎無誤的節奏彼此咬合，凝成不受雜質干擾的金白星芒。象徵純粹的初心、堅定的信念，以及把最真實的光傳向遠方。'
   };
 
+  const SPARK_FALLBACK = {
+    type: 'spark',
+    name: '星火',
+    rarity: 'common',
+    rarityLabel: '常見',
+    rarityRank: 1,
+    colors: ['#ffffff', '#ffe47d', '#ff9d42', '#e64535'],
+    sigil: '✦',
+    description: '它也許微小，卻足以成為一段故事、一個選擇或一次改變的起點。象徵靈感、開始，以及把光傳往更遠地方的可能。'
+  };
+
+  function mean(values) {
+    return values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : 0;
+  }
+
+  function spread(values) {
+    return values.length ? Math.max(...values) / Math.max(1, Math.min(...values)) : 1;
+  }
+
+  function isWithin(values, min, max, ratio) {
+    return values.length > 0
+      && values.every((value) => Number.isFinite(value) && value >= min && value <= max)
+      && spread(values) <= ratio;
+  }
+
+  function qualifiesPureSpark(flame) {
+    const rhythm = Array.isArray(flame?.rhythm) ? flame.rhythm.map(Number) : [];
+    if (Number(flame?.tapCount) !== 11 || rhythm.length !== 10) return false;
+
+    // Eleven taps use four groups: 2 → pause → 3 → pause → 4 → pause → 2.
+    const pauses = [rhythm[1], rhythm[4], rhythm[8]];
+    const shortBeats = [rhythm[0], rhythm[2], rhythm[3], rhythm[5], rhythm[6], rhythm[7], rhythm[9]];
+    const total = rhythm.reduce((sum, value) => sum + value, 0);
+
+    return isWithin(pauses, 380, 980, 1.8)
+      && isWithin(shortBeats, 45, 210, 2)
+      && mean(shortBeats) <= 160
+      && mean(pauses) >= mean(shortBeats) * 2.2
+      && total >= 1700
+      && total <= 5000;
+  }
+
   function applyPriority(flame) {
     const tapCount = Number(flame?.tapCount);
 
@@ -43,16 +85,27 @@
       };
     }
 
-    // Twelve taps only receive Pure Spark priority after the rarity engine
-    // has already verified the required 2-3-4-3 rhythm signature.
-    if (tapCount === 12 && flame?.type === 'pure-spark') {
+    // Eleven taps receive Pure Spark priority only after passing its rhythm signature.
+    if (qualifiesPureSpark(flame)) {
       return {
         ...flame,
         ...PURE_SPARK,
         tapCount,
         specialFlame: true,
         priorityByTapCount: true,
-        priorityRule: '12-tap-qualified'
+        priorityRule: '11-tap-qualified'
+      };
+    }
+
+    // Retire the former twelve-tap Pure Spark trigger.
+    if (tapCount === 12 && flame?.type === 'pure-spark') {
+      return {
+        ...flame,
+        ...SPARK_FALLBACK,
+        tapCount,
+        specialFlame: false,
+        priorityByTapCount: false,
+        priorityRule: '12-tap-pure-spark-retired'
       };
     }
 
