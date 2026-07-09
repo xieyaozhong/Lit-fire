@@ -6,42 +6,57 @@
 
   const originalFetch = window.fetch.bind(window);
 
-  const PRIORITY_FLAMES = {
-    9: {
-      type: 'blue-party',
-      name: '歸藍趴火',
-      rarity: 'epic',
-      rarityLabel: '罕見',
-      rarityRank: 3,
-      colors: ['#effcff', '#6ee7ff', '#147cff', '#2720a8'],
-      sigil: '♬',
-      description: '它一明一滅地召集失散的節拍，讓快樂不再只屬於一個人。象徵重新歸隊、共享歡樂，以及與夥伴再次連結。'
-    },
-    12: {
-      type: 'pure-spark',
-      name: '純正星火',
-      rarity: 'special',
-      rarityLabel: '特殊',
-      rarityRank: 4,
-      colors: ['#ffffff', '#fff7c7', '#ffd95e', '#ff8b35'],
-      sigil: '✧',
-      description: '四段近乎無誤的節奏彼此咬合，凝成不受雜質干擾的金白星芒。象徵純粹的初心、堅定的信念，以及把最真實的光傳向遠方。'
-    }
+  const BLUE_PARTY = {
+    type: 'blue-party',
+    name: '歸藍趴火',
+    rarity: 'epic',
+    rarityLabel: '罕見',
+    rarityRank: 3,
+    colors: ['#effcff', '#6ee7ff', '#147cff', '#2720a8'],
+    sigil: '♬',
+    description: '它一明一滅地召集失散的節拍，讓快樂不再只屬於一個人。象徵重新歸隊、共享歡樂，以及與夥伴再次連結。'
+  };
+
+  const PURE_SPARK = {
+    type: 'pure-spark',
+    name: '純正星火',
+    rarity: 'special',
+    rarityLabel: '特殊',
+    rarityRank: 4,
+    colors: ['#ffffff', '#fff7c7', '#ffd95e', '#ff8b35'],
+    sigil: '✧',
+    description: '四段近乎無誤的節奏彼此咬合，凝成不受雜質干擾的金白星芒。象徵純粹的初心、堅定的信念，以及把最真實的光傳向遠方。'
   };
 
   function applyPriority(flame) {
     const tapCount = Number(flame?.tapCount);
-    const priority = PRIORITY_FLAMES[tapCount];
-    if (!priority) return flame;
 
-    return {
-      ...flame,
-      ...priority,
-      tapCount,
-      specialFlame: true,
-      priorityByTapCount: true,
-      priorityRule: `${tapCount}-tap-guaranteed`
-    };
+    // Nine taps remain a guaranteed Blue Party flame.
+    if (tapCount === 9) {
+      return {
+        ...flame,
+        ...BLUE_PARTY,
+        tapCount,
+        specialFlame: true,
+        priorityByTapCount: true,
+        priorityRule: '9-tap-guaranteed'
+      };
+    }
+
+    // Twelve taps only receive Pure Spark priority after the rarity engine
+    // has already verified the required 2-3-4-3 rhythm signature.
+    if (tapCount === 12 && flame?.type === 'pure-spark') {
+      return {
+        ...flame,
+        ...PURE_SPARK,
+        tapCount,
+        specialFlame: true,
+        priorityByTapCount: true,
+        priorityRule: '12-tap-qualified'
+      };
+    }
+
+    return flame;
   }
 
   function updateUi(flame) {
