@@ -9,288 +9,198 @@
   const sigil = document.getElementById('flameSigil');
   if (!button || !card) return;
 
+  button.style.isolation = 'isolate';
+
   const style = document.createElement('style');
   style.textContent = `
-    #ignitionButton {
-      isolation: isolate;
-    }
-
     .pure-spark-signature {
       position: absolute;
-      inset: -34%;
+      inset: -8%;
       z-index: 4;
-      display: block;
       pointer-events: none;
       opacity: 0;
       visibility: hidden;
-      transform: scale(.86);
-      transition: opacity .3s ease, transform .42s cubic-bezier(.2,.9,.2,1), visibility .3s;
-      filter: drop-shadow(0 0 12px rgba(255,248,211,.55));
+      transform: scale(.94);
+      transition: opacity .3s ease, transform .38s ease, visibility .3s;
+      mix-blend-mode: screen;
     }
 
-    #ignitionButton[data-flame-type="pure-spark"] .pure-spark-signature {
+    #ignitionButton.lit[data-flame-type="pure-spark"] .pure-spark-signature {
       opacity: 1;
       visibility: visible;
       transform: scale(1);
     }
 
-    .pure-spark-aura,
-    .pure-spark-rays,
-    .pure-spark-ring,
-    .pure-spark-star,
-    .pure-spark-orbit {
+    .pure-spark-core-halo,
+    .pure-spark-flare,
+    .pure-spark-mote {
       position: absolute;
-      left: 50%;
-      top: 50%;
       pointer-events: none;
     }
 
-    .pure-spark-aura {
-      width: 78%;
+    .pure-spark-core-halo {
+      left: 50%;
+      top: 54%;
+      width: 68%;
       aspect-ratio: 1;
-      border-radius: 50%;
       transform: translate(-50%, -50%);
+      border-radius: 50%;
       background: radial-gradient(circle,
-        rgba(255,255,255,.82) 0%,
-        rgba(255,249,212,.5) 17%,
-        rgba(255,215,105,.23) 40%,
-        rgba(255,175,55,.08) 61%,
-        transparent 74%);
-      mix-blend-mode: screen;
-      animation: pure-spark-aura-pulse 2.6s ease-in-out infinite;
+        rgba(255,255,255,.58) 0%,
+        rgba(255,247,199,.34) 20%,
+        rgba(255,211,91,.18) 45%,
+        rgba(255,145,38,.06) 66%,
+        transparent 78%);
+      filter: blur(.2px);
+      animation: pure-spark-core-breathe 2.45s ease-in-out infinite;
     }
 
-    .pure-spark-rays {
-      width: 112%;
-      aspect-ratio: 1;
-      transform: translate(-50%, -50%);
-      border-radius: 50%;
-      opacity: .88;
-      background:
-        linear-gradient(90deg, transparent 3%, rgba(255,255,255,0) 37%, rgba(255,255,255,.94) 49.5%, rgba(255,255,255,.94) 50.5%, rgba(255,255,255,0) 63%, transparent 97%),
-        linear-gradient(0deg, transparent 3%, rgba(255,244,191,0) 37%, rgba(255,247,207,.92) 49.5%, rgba(255,247,207,.92) 50.5%, rgba(255,244,191,0) 63%, transparent 97%),
-        linear-gradient(45deg, transparent 18%, rgba(255,229,145,0) 43%, rgba(255,234,159,.52) 49.5%, rgba(255,234,159,.52) 50.5%, rgba(255,229,145,0) 57%, transparent 82%),
-        linear-gradient(-45deg, transparent 18%, rgba(255,229,145,0) 43%, rgba(255,234,159,.52) 49.5%, rgba(255,234,159,.52) 50.5%, rgba(255,229,145,0) 57%, transparent 82%);
-      mix-blend-mode: screen;
-      animation: pure-spark-rays-breathe 2.2s ease-in-out infinite, pure-spark-rays-turn 13s linear infinite;
-    }
-
-    .pure-spark-ring {
-      border-radius: 50%;
-      transform: translate(-50%, -50%);
-      mix-blend-mode: screen;
-    }
-
-    .pure-spark-ring.outer {
-      width: 72%;
-      aspect-ratio: 1;
-      border: 1px solid rgba(255,235,164,.72);
-      box-shadow:
-        0 0 8px rgba(255,255,255,.68),
-        0 0 24px rgba(255,214,94,.42),
-        inset 0 0 17px rgba(255,244,196,.2);
-      animation: pure-spark-ring-turn 7.5s linear infinite, pure-spark-ring-pulse 2.8s ease-in-out infinite;
-    }
-
-    .pure-spark-ring.outer::before,
-    .pure-spark-ring.outer::after {
-      content: '';
-      position: absolute;
-      border-radius: 50%;
-      background: #fff9d8;
-      box-shadow: 0 0 7px #fff, 0 0 15px rgba(255,207,74,.9);
-    }
-
-    .pure-spark-ring.outer::before {
-      width: 7px;
-      height: 7px;
-      left: 9%;
-      top: 19%;
-    }
-
-    .pure-spark-ring.outer::after {
-      width: 5px;
-      height: 5px;
-      right: 7%;
-      bottom: 22%;
-    }
-
-    .pure-spark-ring.inner {
-      width: 52%;
-      aspect-ratio: 1;
-      border: 1px dashed rgba(255,255,255,.68);
-      box-shadow: 0 0 14px rgba(255,238,172,.32);
-      animation: pure-spark-ring-turn-reverse 5.2s linear infinite;
-    }
-
-    .pure-spark-star {
-      width: 13%;
+    .pure-spark-flare {
+      left: 50%;
+      top: 49%;
+      width: 9%;
       aspect-ratio: 1;
       transform: translate(-50%, -50%) rotate(45deg);
-      border-radius: 28%;
-      background: linear-gradient(135deg, #fff 0%, #fffbdc 34%, #ffd85f 72%, #ff9e31 100%);
+      border-radius: 30%;
+      background: linear-gradient(135deg, #fff 0%, #fff9cf 42%, #ffd760 78%, #ff9e34 100%);
       box-shadow:
-        0 0 7px #fff,
-        0 0 18px rgba(255,245,194,.95),
-        0 0 34px rgba(255,200,72,.72),
-        0 0 56px rgba(255,155,39,.34);
-      animation: pure-spark-star-pulse 1.65s ease-in-out infinite;
+        0 0 7px rgba(255,255,255,.95),
+        0 0 19px rgba(255,237,161,.88),
+        0 0 34px rgba(255,191,65,.48);
+      animation: pure-spark-flare-pulse 1.9s ease-in-out infinite;
     }
 
-    .pure-spark-star::before,
-    .pure-spark-star::after {
+    .pure-spark-flare::before,
+    .pure-spark-flare::after {
       content: '';
       position: absolute;
       left: 50%;
       top: 50%;
       transform: translate(-50%, -50%) rotate(-45deg);
       border-radius: 999px;
-      background: linear-gradient(90deg, transparent, rgba(255,255,255,.96), transparent);
-      mix-blend-mode: screen;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,.9), transparent);
     }
 
-    .pure-spark-star::before {
-      width: 330%;
-      height: 12%;
+    .pure-spark-flare::before {
+      width: 245%;
+      height: 10%;
     }
 
-    .pure-spark-star::after {
-      width: 12%;
-      height: 330%;
-      background: linear-gradient(0deg, transparent, rgba(255,248,207,.96), transparent);
-    }
-
-    .pure-spark-orbit {
-      width: 0;
-      height: 0;
-      transform: rotate(var(--orbit-angle));
-      animation: pure-spark-orbit-turn var(--orbit-speed) linear infinite;
-      animation-delay: var(--orbit-delay);
+    .pure-spark-flare::after {
+      width: 10%;
+      height: 245%;
+      background: linear-gradient(0deg, transparent, rgba(255,247,205,.9), transparent);
     }
 
     .pure-spark-mote {
-      position: absolute;
-      left: var(--orbit-radius);
-      top: 0;
+      left: var(--mote-left);
+      bottom: var(--mote-bottom);
       width: var(--mote-size);
       height: var(--mote-size);
       border-radius: 50%;
-      transform: translate(-50%, -50%);
-      background: #fff9d8;
-      box-shadow: 0 0 5px #fff, 0 0 12px rgba(255,205,71,.9);
-      animation: pure-spark-mote-pulse var(--mote-pulse) ease-in-out infinite alternate;
-      animation-delay: var(--orbit-delay);
-    }
-
-    #ignitionButton[data-flame-type="pure-spark"] #persistentFlameCanvas,
-    #ignitionButton[data-flame-type="pure-spark"] + * {
-      filter: brightness(1.25) saturate(1.16) drop-shadow(0 0 12px rgba(255,236,155,.48));
-    }
-
-    #ignitionButton[data-flame-type="pure-spark"] .ignition-core {
+      background: var(--mote-color);
       box-shadow:
-        0 0 20px rgba(255,255,255,.5),
-        0 0 44px rgba(255,221,113,.36),
-        inset 0 0 26px rgba(255,250,216,.2) !important;
-      animation: pure-spark-core-pulse 2.6s ease-in-out infinite !important;
+        0 0 5px rgba(255,255,255,.9),
+        0 0 11px rgba(255,207,71,.78);
+      opacity: 0;
+      animation: pure-spark-mote-rise var(--mote-duration) ease-in infinite;
+      animation-delay: var(--mote-delay);
     }
 
-    #ignitionButton[data-flame-type="pure-spark"] .ignition-ring {
-      border-color: rgba(255,242,187,.92) !important;
+    #ignitionButton.lit[data-flame-type="pure-spark"] #persistentFlameCanvas {
+      transform-origin: 50% 70%;
+      animation: pure-spark-flame-breathe 2.45s ease-in-out infinite !important;
+      filter:
+        brightness(1.24)
+        saturate(1.12)
+        drop-shadow(0 0 9px rgba(255,246,194,.42))
+        drop-shadow(0 0 19px rgba(255,186,62,.24));
+    }
+
+    #ignitionButton.lit[data-flame-type="pure-spark"] .ignition-core {
+      background:
+        radial-gradient(circle at 50% 44%, rgba(255,255,255,.24), transparent 16%),
+        radial-gradient(circle, rgba(255,221,103,.19), rgba(255,134,43,.12) 48%, rgba(7,5,14,.97) 78%) !important;
       box-shadow:
-        0 0 12px rgba(255,255,255,.75),
-        0 0 34px rgba(255,218,100,.56),
-        0 0 68px rgba(255,163,46,.22),
-        inset 0 0 28px rgba(255,248,207,.16) !important;
+        0 0 19px rgba(255,255,255,.34),
+        0 0 42px rgba(255,213,101,.31),
+        inset 0 0 26px rgba(255,245,198,.14) !important;
+      animation: pure-spark-button-core 2.45s ease-in-out infinite !important;
+    }
+
+    #ignitionButton.lit[data-flame-type="pure-spark"] .ignition-ring {
+      border-color: rgba(255,232,156,.82) !important;
+      box-shadow:
+        0 0 11px rgba(255,255,255,.48),
+        0 0 27px rgba(255,207,78,.36),
+        inset 0 0 25px rgba(255,241,190,.12) !important;
     }
 
     #flameCard[data-flame-type="pure-spark"] {
-      border-color: rgba(255,225,132,.38) !important;
+      border-color: rgba(255,220,120,.3) !important;
       box-shadow:
-        0 0 0 1px rgba(255,248,211,.08),
-        0 0 30px rgba(255,210,86,.17),
-        inset 0 0 28px rgba(255,245,194,.06) !important;
+        0 0 0 1px rgba(255,248,211,.06),
+        0 0 24px rgba(255,199,68,.13),
+        inset 0 0 25px rgba(255,242,187,.05) !important;
     }
 
     #flameCard[data-flame-type="pure-spark"] #flameSigil {
-      color: #fff7c7;
+      color: #fff6c1;
       text-shadow:
-        0 0 6px #fff,
-        0 0 16px rgba(255,231,145,.9),
-        0 0 30px rgba(255,185,52,.58);
-      animation: pure-spark-sigil-pulse 2s ease-in-out infinite;
+        0 0 5px rgba(255,255,255,.9),
+        0 0 14px rgba(255,226,130,.76),
+        0 0 25px rgba(255,169,47,.4);
+      animation: pure-spark-sigil-pulse 2.1s ease-in-out infinite;
     }
 
     .pure-spark-signature.is-entering {
-      animation: pure-spark-entry-burst .85s cubic-bezier(.12,.8,.2,1) both;
+      animation: pure-spark-entry .62s cubic-bezier(.12,.8,.2,1) both;
     }
 
-    @keyframes pure-spark-entry-burst {
-      0% { opacity: 0; transform: scale(.25) rotate(-18deg); filter: brightness(3) blur(7px); }
-      48% { opacity: 1; transform: scale(1.18) rotate(4deg); filter: brightness(2.2) blur(0); }
-      100% { opacity: 1; transform: scale(1) rotate(0); filter: brightness(1); }
+    @keyframes pure-spark-entry {
+      0% { opacity: 0; transform: scale(.72); filter: brightness(2.4) blur(3px); }
+      55% { opacity: 1; transform: scale(1.06); filter: brightness(1.55) blur(0); }
+      100% { opacity: 1; transform: scale(1); filter: brightness(1); }
     }
 
-    @keyframes pure-spark-aura-pulse {
+    @keyframes pure-spark-core-breathe {
       0%,100% { opacity: .58; transform: translate(-50%, -50%) scale(.92); }
-      50% { opacity: 1; transform: translate(-50%, -50%) scale(1.09); }
+      50% { opacity: .98; transform: translate(-50%, -50%) scale(1.08); }
     }
 
-    @keyframes pure-spark-rays-breathe {
-      0%,100% { opacity: .52; filter: blur(.3px); }
-      50% { opacity: 1; filter: blur(0); }
+    @keyframes pure-spark-flare-pulse {
+      0%,100% { transform: translate(-50%, -50%) rotate(45deg) scale(.8); filter: brightness(1.02); }
+      50% { transform: translate(-50%, -50%) rotate(45deg) scale(1.15); filter: brightness(1.55); }
     }
 
-    @keyframes pure-spark-rays-turn {
-      from { transform: translate(-50%, -50%) rotate(0deg); }
-      to { transform: translate(-50%, -50%) rotate(360deg); }
+    @keyframes pure-spark-mote-rise {
+      0% { opacity: 0; transform: translate3d(0, 8px, 0) scale(.45); }
+      18% { opacity: .95; }
+      62% { opacity: .72; }
+      100% { opacity: 0; transform: translate3d(var(--mote-drift), -88px, 0) scale(1.15); }
     }
 
-    @keyframes pure-spark-ring-turn {
-      from { transform: translate(-50%, -50%) rotate(0deg); }
-      to { transform: translate(-50%, -50%) rotate(360deg); }
+    @keyframes pure-spark-flame-breathe {
+      0%,100% { transform: scale(.99) translateY(1px); }
+      50% { transform: scale(1.035) translateY(-2px); }
     }
 
-    @keyframes pure-spark-ring-turn-reverse {
-      from { transform: translate(-50%, -50%) rotate(360deg); }
-      to { transform: translate(-50%, -50%) rotate(0deg); }
-    }
-
-    @keyframes pure-spark-ring-pulse {
-      0%,100% { opacity: .66; }
-      50% { opacity: 1; }
-    }
-
-    @keyframes pure-spark-star-pulse {
-      0%,100% { transform: translate(-50%, -50%) rotate(45deg) scale(.84); filter: brightness(1.05); }
-      50% { transform: translate(-50%, -50%) rotate(45deg) scale(1.16); filter: brightness(1.7); }
-    }
-
-    @keyframes pure-spark-orbit-turn {
-      from { transform: rotate(var(--orbit-angle)); }
-      to { transform: rotate(calc(var(--orbit-angle) + 360deg)); }
-    }
-
-    @keyframes pure-spark-mote-pulse {
-      from { opacity: .28; transform: translate(-50%, -50%) scale(.55); }
-      to { opacity: 1; transform: translate(-50%, -50%) scale(1.35); }
-    }
-
-    @keyframes pure-spark-core-pulse {
-      0%,100% { filter: brightness(1.06) saturate(1.05); transform: scale(.985); }
-      50% { filter: brightness(1.5) saturate(1.18); transform: scale(1.035); }
+    @keyframes pure-spark-button-core {
+      0%,100% { filter: brightness(1.04); transform: scale(.99); }
+      50% { filter: brightness(1.34); transform: scale(1.025); }
     }
 
     @keyframes pure-spark-sigil-pulse {
-      0%,100% { transform: scale(.94) rotate(-4deg); opacity: .82; }
-      50% { transform: scale(1.12) rotate(4deg); opacity: 1; }
+      0%,100% { transform: scale(.95); opacity: .84; }
+      50% { transform: scale(1.09); opacity: 1; }
     }
 
     @media (prefers-reduced-motion: reduce) {
       .pure-spark-signature *,
-      #ignitionButton[data-flame-type="pure-spark"] .ignition-core,
+      #ignitionButton.lit[data-flame-type="pure-spark"] #persistentFlameCanvas,
+      #ignitionButton.lit[data-flame-type="pure-spark"] .ignition-core,
       #flameCard[data-flame-type="pure-spark"] #flameSigil {
-        animation-duration: 8s !important;
+        animation-duration: 7s !important;
       }
     }
   `;
@@ -300,42 +210,36 @@
   layer.className = 'pure-spark-signature';
   layer.setAttribute('aria-hidden', 'true');
   layer.innerHTML = `
-    <span class="pure-spark-aura"></span>
-    <span class="pure-spark-rays"></span>
-    <span class="pure-spark-ring outer"></span>
-    <span class="pure-spark-ring inner"></span>
-    <span class="pure-spark-star"></span>
+    <span class="pure-spark-core-halo"></span>
+    <span class="pure-spark-flare"></span>
   `;
 
   const fragment = document.createDocumentFragment();
-  const orbitRadii = ['31%', '36%', '41%'];
-  for (let index = 0; index < 18; index += 1) {
-    const orbit = document.createElement('span');
-    orbit.className = 'pure-spark-orbit';
-    orbit.style.setProperty('--orbit-angle', `${index * 20}deg`);
-    orbit.style.setProperty('--orbit-radius', orbitRadii[index % orbitRadii.length]);
-    orbit.style.setProperty('--orbit-speed', `${6.2 + (index % 5) * .7}s`);
-    orbit.style.setProperty('--orbit-delay', `${-(index % 9) * .41}s`);
-    orbit.style.setProperty('--mote-size', `${2 + (index % 4)}px`);
-    orbit.style.setProperty('--mote-pulse', `${1.15 + (index % 4) * .28}s`);
-
+  const colors = ['#fffdf0', '#fff3b0', '#ffd968', '#ffaf45'];
+  for (let index = 0; index < 16; index += 1) {
     const mote = document.createElement('span');
     mote.className = 'pure-spark-mote';
-    orbit.appendChild(mote);
-    fragment.appendChild(orbit);
+    mote.style.setProperty('--mote-left', `${24 + (index * 17) % 54}%`);
+    mote.style.setProperty('--mote-bottom', `${20 + (index % 4) * 5}%`);
+    mote.style.setProperty('--mote-size', `${2 + (index % 3)}px`);
+    mote.style.setProperty('--mote-duration', `${2.5 + (index % 5) * .34}s`);
+    mote.style.setProperty('--mote-delay', `${-(index % 8) * .39}s`);
+    mote.style.setProperty('--mote-drift', `${-18 + (index * 11) % 36}px`);
+    mote.style.setProperty('--mote-color', colors[index % colors.length]);
+    fragment.appendChild(mote);
   }
   layer.appendChild(fragment);
   button.appendChild(layer);
 
-  let wasPureSpark = button.dataset.flameType === 'pure-spark';
+  let wasPureSpark = button.classList.contains('lit') && button.dataset.flameType === 'pure-spark';
 
   function syncEffect() {
-    const isPureSpark = button.dataset.flameType === 'pure-spark';
+    const isPureSpark = button.classList.contains('lit') && button.dataset.flameType === 'pure-spark';
     if (isPureSpark && !wasPureSpark) {
       layer.classList.remove('is-entering');
       void layer.offsetWidth;
       layer.classList.add('is-entering');
-      window.setTimeout(() => layer.classList.remove('is-entering'), 900);
+      window.setTimeout(() => layer.classList.remove('is-entering'), 680);
     }
     if (!isPureSpark) layer.classList.remove('is-entering');
     wasPureSpark = isPureSpark;
@@ -343,7 +247,7 @@
 
   new MutationObserver(syncEffect).observe(button, {
     attributes: true,
-    attributeFilter: ['data-flame-type']
+    attributeFilter: ['class', 'data-flame-type']
   });
 
   new MutationObserver(() => {
