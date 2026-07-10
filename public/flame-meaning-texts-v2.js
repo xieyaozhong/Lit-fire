@@ -74,6 +74,11 @@
       name: '回聲火',
       description: '它把曾經說出的心聲送往遠方，再以另一種形式回到身邊。象徵記憶、回應，以及真心終有被聽見的一刻。',
       symbolicMeaning: '記憶、回應，以及真心終有被聽見的一刻。'
+    },
+    'pure-spark': {
+      name: '純正星火',
+      description: '四段近乎無誤的節奏彼此咬合，凝成不受雜質干擾的金白星芒。象徵純粹的初心、堅定的信念，以及把最真實的光傳向遠方。',
+      symbolicMeaning: '純粹的初心、堅定的信念，以及把最真實的光傳向遠方。'
     }
   };
 
@@ -87,15 +92,25 @@
 
   function resolveMeaning(flame) {
     if (!flame || typeof flame !== 'object') return null;
-    return MEANINGS[flame.type] || BY_NAME[flame.name] || null;
+    const plainName = String(flame.name || '').split('・')[0];
+    return MEANINGS[flame.type] || BY_NAME[plainName] || null;
+  }
+
+  function variantSuffix(flame) {
+    const source = String(flame?.displayName || flame?.name || '');
+    const separator = source.indexOf('・');
+    return separator >= 0 ? source.slice(separator) : '';
   }
 
   function updateFlame(flame) {
     const meaning = resolveMeaning(flame);
     if (!meaning) return flame;
+    const suffix = variantSuffix(flame);
+    const normalizedName = `${meaning.name}${suffix}`;
     return {
       ...flame,
-      name: meaning.name,
+      name: normalizedName,
+      displayName: suffix ? normalizedName : flame.displayName,
       description: meaning.description,
       symbolicMeaning: meaning.symbolicMeaning
     };
@@ -103,7 +118,8 @@
 
   function syncVisibleText() {
     if (!flameName || !flameDescription) return;
-    const meaning = BY_NAME[flameName.textContent.trim()];
+    const plainName = flameName.textContent.trim().split('・')[0];
+    const meaning = BY_NAME[plainName];
     if (!meaning) return;
     if (flameDescription.textContent !== meaning.description) {
       flameDescription.textContent = meaning.description;
