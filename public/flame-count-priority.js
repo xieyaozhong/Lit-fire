@@ -47,33 +47,32 @@
     return values.length ? Math.max(...values) / Math.max(1, Math.min(...values)) : 1;
   }
 
-  function isWithin(values, min, max, ratio) {
-    return values.length > 0
-      && values.every((value) => Number.isFinite(value) && value >= min && value <= max)
-      && spread(values) <= ratio;
-  }
-
   function qualifiesPureSpark(flame) {
     const rhythm = Array.isArray(flame?.rhythm) ? flame.rhythm.map(Number) : [];
     if (Number(flame?.tapCount) !== 11 || rhythm.length !== 10) return false;
 
-    // Eleven taps use four groups: 2 → pause → 3 → pause → 4 → pause → 2.
+    // Eleven taps: 2 → pause → 3 → pause → 4 → pause → 2.
     const pauses = [rhythm[1], rhythm[4], rhythm[8]];
     const shortBeats = [rhythm[0], rhythm[2], rhythm[3], rhythm[5], rhythm[6], rhythm[7], rhythm[9]];
     const total = rhythm.reduce((sum, value) => sum + value, 0);
+    const shortAverage = mean(shortBeats);
+    const pauseAverage = mean(pauses);
+    const validShorts = shortBeats.filter((value) => Number.isFinite(value) && value >= 45 && value <= 340).length;
+    const validPauses = pauses.every((value) => Number.isFinite(value) && value >= 280 && value <= 1180);
+    const clearlySeparated = pauses.filter((value) => value >= Math.max(260, shortAverage * 1.35)).length >= 2;
 
-    return isWithin(pauses, 380, 980, 1.8)
-      && isWithin(shortBeats, 45, 210, 2)
-      && mean(shortBeats) <= 160
-      && mean(pauses) >= mean(shortBeats) * 2.2
-      && total >= 1700
-      && total <= 5000;
+    return validShorts >= 6
+      && validPauses
+      && clearlySeparated
+      && spread(pauses) <= 2.8
+      && pauseAverage >= shortAverage * 1.45
+      && total >= 1400
+      && total <= 6200;
   }
 
   function applyPriority(flame) {
     const tapCount = Number(flame?.tapCount);
 
-    // Nine taps remain a guaranteed Blue Party flame.
     if (tapCount === 9) {
       return {
         ...flame,
@@ -85,7 +84,6 @@
       };
     }
 
-    // Eleven taps receive Pure Spark priority only after passing its rhythm signature.
     if (qualifiesPureSpark(flame)) {
       return {
         ...flame,
@@ -93,11 +91,10 @@
         tapCount,
         specialFlame: true,
         priorityByTapCount: true,
-        priorityRule: '11-tap-qualified'
+        priorityRule: '11-tap-qualified-v2'
       };
     }
 
-    // Retire the former twelve-tap Pure Spark trigger.
     if (tapCount === 12 && flame?.type === 'pure-spark') {
       return {
         ...flame,
