@@ -19,6 +19,36 @@
   });
   button.appendChild(canvas);
 
+  const style = document.createElement('style');
+  style.textContent = `
+    #ignitionButton[data-flame-type="azure"] #persistentFlameCanvas {
+      transform-origin: 50% 72%;
+      animation: azure-flame-velocity .72s ease-in-out infinite !important;
+    }
+
+    #ignitionButton[data-flame-type="azure"] .ignition-ring {
+      animation-duration: 4.2s !important;
+      filter: brightness(1.16) saturate(1.18);
+    }
+
+    #ignitionButton[data-flame-type="azure"] .ignition-core {
+      animation: azure-core-pulse .62s ease-in-out infinite !important;
+    }
+
+    @keyframes azure-flame-velocity {
+      0%, 100% { transform: scaleY(.98) scaleX(1.01) translateY(1px); filter: brightness(1.04); }
+      32% { transform: scaleY(1.07) scaleX(.97) translateY(-3px); filter: brightness(1.28); }
+      58% { transform: scaleY(.96) scaleX(1.04) translateY(1px); filter: brightness(.98); }
+      78% { transform: scaleY(1.05) scaleX(.98) translateY(-2px); filter: brightness(1.2); }
+    }
+
+    @keyframes azure-core-pulse {
+      0%, 100% { filter: brightness(1.02); }
+      50% { filter: brightness(1.34); }
+    }
+  `;
+  document.head.appendChild(style);
+
   const ctx = canvas.getContext('2d');
   const particles = [];
   let cssWidth = 1;
@@ -87,18 +117,20 @@
     ctx.restore();
   }
 
-  function spawnParticle(cx, cy, radius, colors) {
-    if (particles.length > 42) return;
+  function spawnParticle(cx, cy, radius, colors, speedScale = 1) {
+    if (particles.length > 52) return;
     const color = colors[Math.floor(Math.random() * colors.length)];
     particles.push({
       x: cx + (Math.random() - 0.5) * radius * 0.56,
       y: cy + radius * 0.38 + Math.random() * 7,
-      vx: (Math.random() - 0.5) * 0.34,
-      vy: -(Math.random() * 0.85 + 0.45),
+      vx: (Math.random() - 0.5) * 0.34 * (0.9 + speedScale * 0.45),
+      vy: -(Math.random() * 0.85 + 0.45) * speedScale,
       life: 1,
-      decay: Math.random() * 0.012 + 0.008,
+      decay: (Math.random() * 0.012 + 0.008) * (0.86 + speedScale * 0.18),
       size: Math.random() * 2.7 + 0.8,
-      color
+      color,
+      sway: Math.random() * Math.PI * 2,
+      speedScale
     });
   }
 
@@ -118,6 +150,10 @@
       return;
     }
 
+    const isAzure = button.dataset.flameType === 'azure';
+    const speedMultiplier = isAzure ? 2.45 : 1;
+    const animatedTime = time * speedMultiplier;
+
     const styles = getComputedStyle(button);
     const primary = parseColor(styles.getPropertyValue('--flame-primary'), [255, 154, 72]);
     const secondary = parseColor(styles.getPropertyValue('--flame-secondary'), [255, 78, 53]);
@@ -127,11 +163,11 @@
     const cx = cssWidth / 2;
     const cy = cssHeight / 2;
     const radius = Math.min(cssWidth, cssHeight) * 0.43;
-    const pulse = 1 + Math.sin(time * 0.0025) * 0.018;
+    const pulse = 1 + Math.sin(animatedTime * 0.0025) * (isAzure ? 0.032 : 0.018);
 
     const halo = ctx.createRadialGradient(cx, cy, radius * 0.2, cx, cy, radius * 1.16);
-    halo.addColorStop(0, rgba(primary, 0.18));
-    halo.addColorStop(0.52, rgba(secondary, 0.12));
+    halo.addColorStop(0, rgba(primary, isAzure ? 0.24 : 0.18));
+    halo.addColorStop(0.52, rgba(secondary, isAzure ? 0.17 : 0.12));
     halo.addColorStop(1, rgba(dark, 0));
     ctx.fillStyle = halo;
     ctx.beginPath();
@@ -144,15 +180,16 @@
     ctx.clip();
 
     const baseY = cy + radius * 0.58;
-    const phase = time * 0.00025;
-    drawFlame(cx, baseY, radius * 0.72, radius * 1.15, dark, time, phase, 0.48);
-    drawFlame(cx + Math.sin(time * 0.0022) * radius * 0.08, baseY - radius * 0.04, radius * 0.56, radius * 0.94, secondary, time, phase + 2.1, 0.78);
-    drawFlame(cx - Math.sin(time * 0.0031) * radius * 0.06, baseY - radius * 0.08, radius * 0.39, radius * 0.72, primary, time, phase + 4.4, 0.93);
-    drawFlame(cx, baseY - radius * 0.13, radius * 0.22, radius * 0.48, light, time, phase + 6.2, 0.98);
+    const phase = animatedTime * 0.00025;
+    const heightBoost = isAzure ? 1.08 : 1;
+    drawFlame(cx, baseY, radius * 0.72, radius * 1.15 * heightBoost, dark, animatedTime, phase, 0.48);
+    drawFlame(cx + Math.sin(animatedTime * 0.0022) * radius * 0.1, baseY - radius * 0.04, radius * 0.56, radius * 0.94 * heightBoost, secondary, animatedTime, phase + 2.1, 0.78);
+    drawFlame(cx - Math.sin(animatedTime * 0.0031) * radius * 0.075, baseY - radius * 0.08, radius * 0.39, radius * 0.72 * heightBoost, primary, animatedTime, phase + 4.4, 0.93);
+    drawFlame(cx, baseY - radius * 0.13, radius * 0.22, radius * 0.48 * heightBoost, light, animatedTime, phase + 6.2, 0.98);
 
     const core = ctx.createRadialGradient(cx, cy + radius * 0.2, 0, cx, cy + radius * 0.2, radius * 0.45);
-    core.addColorStop(0, rgba(light, 0.78));
-    core.addColorStop(0.45, rgba(primary, 0.34));
+    core.addColorStop(0, rgba(light, isAzure ? 0.9 : 0.78));
+    core.addColorStop(0.45, rgba(primary, isAzure ? 0.44 : 0.34));
     core.addColorStop(1, rgba(primary, 0));
     ctx.fillStyle = core;
     ctx.beginPath();
@@ -162,19 +199,23 @@
 
     ctx.save();
     ctx.lineWidth = Math.max(1.5, radius * 0.025);
-    ctx.strokeStyle = rgba(primary, 0.72);
-    ctx.shadowBlur = 14;
+    ctx.strokeStyle = rgba(primary, isAzure ? 0.9 : 0.72);
+    ctx.shadowBlur = isAzure ? 20 : 14;
     ctx.shadowColor = rgba(primary, 0.8);
     ctx.beginPath();
-    ctx.arc(cx, cy, radius * (0.98 + Math.sin(time * 0.0022) * 0.012), 0, Math.PI * 2);
+    ctx.arc(cx, cy, radius * (0.98 + Math.sin(animatedTime * 0.0022) * (isAzure ? 0.022 : 0.012)), 0, Math.PI * 2);
     ctx.stroke();
     ctx.restore();
 
-    if (Math.random() < 0.34) spawnParticle(cx, cy, radius, [light, primary, secondary]);
+    const particleChance = isAzure ? 0.68 : 0.34;
+    if (Math.random() < particleChance) {
+      spawnParticle(cx, cy, radius, [light, primary, secondary], isAzure ? 1.95 : 1);
+    }
 
     for (let index = particles.length - 1; index >= 0; index -= 1) {
       const particle = particles[index];
-      particle.x += particle.vx;
+      particle.sway += 0.045 * particle.speedScale;
+      particle.x += particle.vx + Math.sin(particle.sway) * 0.035 * particle.speedScale;
       particle.y += particle.vy;
       particle.life -= particle.decay;
       if (particle.life <= 0) {
@@ -184,7 +225,7 @@
       ctx.save();
       ctx.globalAlpha = particle.life;
       ctx.fillStyle = rgba(particle.color, 1);
-      ctx.shadowBlur = 10;
+      ctx.shadowBlur = isAzure ? 14 : 10;
       ctx.shadowColor = rgba(particle.color, 0.9);
       ctx.beginPath();
       ctx.arc(particle.x, particle.y, particle.size * particle.life, 0, Math.PI * 2);
@@ -197,7 +238,7 @@
 
   new MutationObserver(() => {
     if (!button.classList.contains('lit')) clear();
-  }).observe(button, { attributes: true, attributeFilter: ['class', 'style'] });
+  }).observe(button, { attributes: true, attributeFilter: ['class', 'style', 'data-flame-type'] });
 
   window.addEventListener('resize', resize, { passive: true });
   resize();
