@@ -29,7 +29,9 @@
     ],
     forest: [
       { id: 'forest-moss', label: '苔靈', chance: .22, style: 'a', glow: '142,255,145', hue: -7, speed: 3.25, ringSpeed: 3.51, flashSpeed: 2.54, scale: 1.025, brightness: 1.14, saturate: 1.1 },
-      { id: 'forest-sprout', label: '新芽', chance: .11, style: 'b', glow: '105,255,194', hue: 11, speed: 2.65, ringSpeed: 2.86, flashSpeed: 1.91, scale: 1.05, brightness: 1.19, saturate: 1.18 }
+      { id: 'forest-sprout', label: '新芽', chance: .11, style: 'b', glow: '105,255,194', hue: 11, speed: 2.65, ringSpeed: 2.86, flashSpeed: 1.91, scale: 1.05, brightness: 1.19, saturate: 1.18 },
+      { id: 'forest-firefly', label: '螢火', chance: .08, style: 'firefly', glow: '214,255,118', hue: 6, speed: 3.1, ringSpeed: 3.35, flashSpeed: 2.4, scale: 1.03, brightness: 1.2, saturate: 1.18 },
+      { id: 'forest-vida', label: '維達', chance: .05, style: 'vida', glow: '82,214,120', hue: -14, speed: 3.55, ringSpeed: 3.84, flashSpeed: 2.78, scale: 1.01, brightness: 1.12, saturate: 1.08 }
     ],
     spark: [
       { id: 'spark-drift', label: '飛絮', chance: .22, style: 'a', glow: '255,218,122', hue: 4, speed: 3.05, ringSpeed: 3.3, flashSpeed: 2.38, scale: 1.025, brightness: 1.17, saturate: 1.08 },
@@ -105,6 +107,10 @@
     #ignitionButton[data-flame-variant-style="a"] .flame-variant-overlay::before{border-style:dashed;animation-direction:normal}
     #ignitionButton[data-flame-variant-style="b"] .flame-variant-overlay::before{width:82%;border-width:2px;animation-direction:reverse}
     #ignitionButton[data-flame-variant-style="b"] .flame-variant-overlay::after{width:54%;animation-name:variant-flash}
+    #ignitionButton[data-flame-variant-style="firefly"] .flame-variant-overlay::before{border-style:dotted;opacity:.46;animation-duration:5.8s}
+    #ignitionButton[data-flame-variant-style="firefly"] .flame-variant-overlay::after{width:38%;opacity:.42}
+    #ignitionButton[data-flame-variant-style="vida"] .flame-variant-overlay::before{border-style:solid;opacity:.34;animation-duration:7.2s}
+    #ignitionButton[data-flame-variant-style="vida"] .flame-variant-overlay::after{width:58%;opacity:.52;animation-duration:4.4s}
     #ignitionButton[data-flame-variant-style="otherworld"]{filter:hue-rotate(180deg) saturate(1.14) brightness(1.04)!important}
     #flameCard[data-flame-variant-style="otherworld"]{filter:hue-rotate(180deg) saturate(1.1) brightness(1.03)!important}
     #flameCard[data-flame-variant]{border-color:rgba(var(--variant-glow),.28)!important;box-shadow:0 0 0 1px rgba(var(--variant-glow),.07),0 0 25px rgba(var(--variant-glow),.1),inset 0 0 20px rgba(var(--variant-glow),.04)!important}
@@ -152,7 +158,7 @@
       name: displayName,
       baseType: flame.type,
       variantResolved: true,
-      variantVersion: 3,
+      variantVersion: 4,
       variantId: variant.id,
       variantLabel: variant.label,
       variantStyle: variant.style,
@@ -184,7 +190,7 @@
         ...flame,
         baseType: flame.type,
         variantResolved: true,
-        variantVersion: 3,
+        variantVersion: 4,
         variantId: null,
         variantLabel: '',
         displayName: flame.name
