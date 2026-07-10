@@ -77,6 +77,21 @@
     ]
   };
 
+  for (const [type, choices] of Object.entries(VARIANTS)) {
+    const source = choices[0];
+    choices.push({
+      ...source,
+      id: `${type}-otherworld`,
+      label: '異界',
+      chance: .06,
+      style: 'otherworld',
+      hue: 0,
+      brightness: Math.max(1.05, source.brightness || 1),
+      saturate: Math.max(1.12, source.saturate || 1),
+      complementary: true
+    });
+  }
+
   const style = document.createElement('style');
   style.textContent = `
     .flame-variant-overlay{position:absolute;inset:-18%;z-index:3;pointer-events:none;opacity:0;visibility:hidden;transition:opacity .28s ease;mix-blend-mode:screen}
@@ -90,6 +105,8 @@
     #ignitionButton[data-flame-variant-style="a"] .flame-variant-overlay::before{border-style:dashed;animation-direction:normal}
     #ignitionButton[data-flame-variant-style="b"] .flame-variant-overlay::before{width:82%;border-width:2px;animation-direction:reverse}
     #ignitionButton[data-flame-variant-style="b"] .flame-variant-overlay::after{width:54%;animation-name:variant-flash}
+    #ignitionButton[data-flame-variant-style="otherworld"]{filter:hue-rotate(180deg) saturate(1.14) brightness(1.04)!important}
+    #flameCard[data-flame-variant-style="otherworld"]{filter:hue-rotate(180deg) saturate(1.1) brightness(1.03)!important}
     #flameCard[data-flame-variant]{border-color:rgba(var(--variant-glow),.28)!important;box-shadow:0 0 0 1px rgba(var(--variant-glow),.07),0 0 25px rgba(var(--variant-glow),.1),inset 0 0 20px rgba(var(--variant-glow),.04)!important}
     #flameCard[data-flame-variant] #flameSigil{text-shadow:0 0 7px rgba(var(--variant-glow),.58),0 0 19px rgba(var(--variant-glow),.3)}
     @keyframes variant-orbit{from{transform:translate(-50%,-50%) rotate(0deg) scale(var(--variant-scale))}to{transform:translate(-50%,-50%) rotate(360deg) scale(var(--variant-scale))}}
@@ -135,10 +152,11 @@
       name: displayName,
       baseType: flame.type,
       variantResolved: true,
-      variantVersion: 2,
+      variantVersion: 3,
       variantId: variant.id,
       variantLabel: variant.label,
       variantStyle: variant.style,
+      complementaryVariant: Boolean(variant.complementary),
       displayName,
       variantFx: {
         glow: variant.glow,
@@ -148,7 +166,8 @@
         flashSpeed: `${variant.flashSpeed}s`,
         scale: variant.scale,
         brightness: variant.brightness,
-        saturate: variant.saturate
+        saturate: variant.saturate,
+        complementary: Boolean(variant.complementary)
       }
     };
   }
@@ -165,7 +184,7 @@
         ...flame,
         baseType: flame.type,
         variantResolved: true,
-        variantVersion: 2,
+        variantVersion: 3,
         variantId: null,
         variantLabel: '',
         displayName: flame.name
@@ -183,8 +202,10 @@
   function clearVariantUi() {
     button.removeAttribute('data-flame-variant');
     button.removeAttribute('data-flame-variant-style');
+    button.removeAttribute('data-flame-complementary');
     card.removeAttribute('data-flame-variant');
     card.removeAttribute('data-flame-variant-style');
+    card.removeAttribute('data-flame-complementary');
     ['--variant-glow','--variant-hue','--variant-speed','--variant-ring-speed','--variant-flash-speed','--variant-scale','--variant-brightness','--variant-saturate'].forEach((property) => button.style.removeProperty(property));
     card.style.removeProperty('--variant-glow');
   }
@@ -206,6 +227,14 @@
     button.dataset.flameVariantStyle = flame.variantStyle || 'a';
     card.dataset.flameVariant = flame.variantId;
     card.dataset.flameVariantStyle = flame.variantStyle || 'a';
+
+    if (flame.complementaryVariant || fx.complementary) {
+      button.dataset.flameComplementary = 'true';
+      card.dataset.flameComplementary = 'true';
+    } else {
+      button.removeAttribute('data-flame-complementary');
+      card.removeAttribute('data-flame-complementary');
+    }
 
     button.style.setProperty('--variant-glow', fx.glow || '255,200,120');
     button.style.setProperty('--variant-hue', fx.hue || '0deg');
