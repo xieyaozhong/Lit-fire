@@ -7,6 +7,8 @@
   const button = document.getElementById('ignitionButton');
   if (!button) return;
 
+  button.style.isolation = 'isolate';
+
   const canvas = document.createElement('canvas');
   canvas.id = 'thunderElectronSparkCanvas';
   canvas.setAttribute('aria-hidden', 'true');
@@ -19,7 +21,6 @@
     transform: 'translate(-50%, -50%)',
     zIndex: '10',
     pointerEvents: 'none',
-    opacity: '0',
     transition: 'opacity 180ms ease',
     overflow: 'visible',
     mixBlendMode: 'screen'
@@ -28,8 +29,14 @@
 
   const style = document.createElement('style');
   style.textContent = `
-    #ignitionButton[data-flame-type="thunder"] #thunderElectronSparkCanvas {
-      opacity: 1;
+    #thunderElectronSparkCanvas {
+      opacity: 0;
+      visibility: hidden;
+    }
+
+    #ignitionButton.lit[data-flame-type="thunder"] #thunderElectronSparkCanvas {
+      opacity: 1 !important;
+      visibility: visible !important;
     }
   `;
   document.head.appendChild(style);
@@ -53,6 +60,13 @@
 
   function isActive() {
     return button.classList.contains('lit') && button.dataset.flameType === 'thunder';
+  }
+
+  function syncVisibility() {
+    const active = isActive();
+    canvas.style.opacity = active ? '1' : '0';
+    canvas.style.visibility = active ? 'visible' : 'hidden';
+    return active;
   }
 
   function resize() {
@@ -92,8 +106,6 @@
     particles.push({
       x,
       y,
-      px: x,
-      py: y,
       vx: Math.cos(angle) * speed,
       vy: Math.sin(angle) * speed,
       angle,
@@ -123,7 +135,7 @@
     nextBurstAt = 0;
   }
 
-  function drawParticle(particle, time) {
+  function drawParticle(particle) {
     const alpha = Math.max(0, particle.life);
     const speed = Math.hypot(particle.vx, particle.vy);
     const tailScale = Math.min(1.9, 0.65 + speed / Math.max(1, width * 0.42));
@@ -178,7 +190,7 @@
 
   function frame(time) {
     resize();
-    const active = isActive();
+    const active = syncVisibility();
     const dt = Math.min(0.034, Math.max(0.001, (time - lastTime) / 1000));
     lastTime = time;
 
@@ -192,7 +204,9 @@
     if (active) {
       if (time - lastSpawnAt > 45) {
         const count = Math.random() < 0.36 ? 2 : 1;
-        for (let index = 0; index < count; index += 1) spawnElectron(0.82 + Math.random() * 0.28);
+        for (let index = 0; index < count; index += 1) {
+          spawnElectron(0.82 + Math.random() * 0.28);
+        }
         lastSpawnAt = time;
       }
 
@@ -206,9 +220,6 @@
     const cy = height / 2;
     for (let index = particles.length - 1; index >= 0; index -= 1) {
       const particle = particles[index];
-      particle.px = particle.x;
-      particle.py = particle.y;
-
       const radialAngle = Math.atan2(particle.y - cy, particle.x - cx);
       const bendWave = Math.sin(time * 0.018 + particle.phase) * particle.jitter;
       const tangentX = -Math.sin(radialAngle);
@@ -221,7 +232,7 @@
       particle.y += particle.vy * dt;
       particle.life -= particle.decay * dt;
 
-      drawParticle(particle, time);
+      drawParticle(particle);
 
       const distance = Math.hypot(particle.x - cx, particle.y - cy);
       if (particle.life <= 0 || distance > width * 0.47) particles.splice(index, 1);
@@ -233,7 +244,8 @@
   }
 
   new MutationObserver(() => {
-    if (!isActive()) {
+    const active = syncVisibility();
+    if (!active) {
       nextBurstAt = 0;
       if (!button.classList.contains('lit')) reset();
     }
@@ -244,5 +256,6 @@
 
   window.addEventListener('resize', resize, { passive: true });
   resize();
+  syncVisibility();
   requestAnimationFrame(frame);
 })();
