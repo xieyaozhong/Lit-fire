@@ -35,18 +35,23 @@
       visibility: visible !important;
     }
 
+    #ignitionButton.lit[data-flame-type="rainbow"] .flame-variant-overlay {
+      display: none !important;
+    }
+
     #ignitionButton.lit[data-flame-type="rainbow"] #persistentFlameCanvas {
       filter: saturate(1.35) brightness(1.12) contrast(1.05);
     }
 
     #ignitionButton.lit[data-flame-type="rainbow"] .ignition-ring {
+      border-style: solid !important;
       border-color: rgba(255,255,255,.62) !important;
+      animation: none !important;
       box-shadow:
         0 0 14px rgba(255,86,113,.42),
         0 0 28px rgba(90,218,255,.34),
         0 0 46px rgba(145,105,255,.25),
         inset 0 0 28px rgba(255,238,130,.16) !important;
-      animation-duration: 6s !important;
     }
   `;
   document.head.appendChild(style);
@@ -133,59 +138,19 @@
     ctx.restore();
   }
 
-  function drawSpectrumRings(cx, cy, radius, time) {
-    ctx.save();
-    ctx.globalCompositeOperation = 'screen';
-    ctx.lineCap = 'round';
-
-    const rotation = time * 0.00105;
-    const segmentCount = 18;
-    for (let index = 0; index < segmentCount; index += 1) {
-      const start = rotation + (Math.PI * 2 * index) / segmentCount;
-      const arcLength = (Math.PI * 2 / segmentCount) * 0.72;
-      const hue = time * 0.055 + index * (360 / segmentCount);
-      const ringRadius = radius * (1.02 + Math.sin(time * 0.0024 + index * 0.7) * 0.018);
-
-      ctx.strokeStyle = hsla(hue, 100, 66, 0.72);
-      ctx.lineWidth = Math.max(1.4, radius * 0.026);
-      ctx.shadowBlur = 13;
-      ctx.shadowColor = hsla(hue, 100, 62, 0.9);
-      ctx.beginPath();
-      ctx.arc(cx, cy, ringRadius, start, start + arcLength);
-      ctx.stroke();
-    }
-
-    for (let index = 0; index < 8; index += 1) {
-      const angle = -time * 0.0016 + index * Math.PI / 4;
-      const hue = time * 0.075 + index * 45;
-      const orbitRadius = radius * (0.78 + (index % 2) * 0.11);
-      const x = cx + Math.cos(angle) * orbitRadius;
-      const y = cy + Math.sin(angle) * orbitRadius;
-
-      ctx.fillStyle = hsla(hue, 100, 72, 0.9);
-      ctx.shadowBlur = 14;
-      ctx.shadowColor = hsla(hue, 100, 62, 1);
-      ctx.beginPath();
-      ctx.arc(x, y, radius * (0.022 + (index % 3) * 0.006), 0, Math.PI * 2);
-      ctx.fill();
-    }
-
-    ctx.restore();
-  }
-
   function spawnParticle(strength = 1) {
     if (particles.length > 72) return;
 
     const cx = width / 2;
     const cy = height / 2;
     const radius = Math.min(width, height) * 0.28;
-    const angle = -Math.PI / 2 + (Math.random() - 0.5) * 1.45;
+    const angle = -Math.PI / 2 + (Math.random() - 0.5) * 1.15;
     const speed = radius * (0.55 + Math.random() * 0.65) * strength;
 
     particles.push({
       x: cx + (Math.random() - 0.5) * radius * 0.58,
       y: cy + radius * (0.22 + Math.random() * 0.14),
-      vx: Math.cos(angle) * speed * 0.38,
+      vx: Math.cos(angle) * speed * 0.28,
       vy: Math.sin(angle) * speed,
       hue: Math.random() * 360,
       life: 1,
@@ -209,15 +174,16 @@
       const particle = particles[index];
       const previousX = particle.x;
       const previousY = particle.y;
-      particle.vx += Math.sin(time * 0.012 + particle.phase) * 5.2 * dt;
+
+      particle.vx += Math.sin(time * 0.008 + particle.phase) * 3.2 * dt;
       particle.x += particle.vx * dt;
       particle.y += particle.vy * dt;
       particle.life -= particle.decay * dt;
       particle.hue += 95 * dt;
 
       const alpha = Math.max(0, particle.life);
-      ctx.strokeStyle = hsla(particle.hue, 100, 70, alpha * 0.58);
-      ctx.lineWidth = Math.max(0.7, particle.size * 0.7);
+      ctx.strokeStyle = hsla(particle.hue, 100, 70, alpha * 0.48);
+      ctx.lineWidth = Math.max(0.7, particle.size * 0.65);
       ctx.shadowBlur = 8;
       ctx.shadowColor = hsla(particle.hue, 100, 62, alpha);
       ctx.beginPath();
@@ -278,11 +244,9 @@
     drawFlameLobe(cx - Math.sin(time * 0.0038) * radius * 0.07, baseY - radius * 0.07, radius * 0.4, radius * 0.74, time, hueBase + 205, 4.5, 0.88);
     drawFlameLobe(cx, baseY - radius * 0.12, radius * 0.24, radius * 0.5, time, hueBase + 305, 6.1, 0.96);
 
-    drawSpectrumRings(cx, cy, radius, time);
-
-    if (time - lastSpawnAt > 42) {
+    if (time - lastSpawnAt > 54) {
       spawnParticle(0.9 + Math.random() * 0.45);
-      if (Math.random() < 0.38) spawnParticle(0.85 + Math.random() * 0.35);
+      if (Math.random() < 0.28) spawnParticle(0.85 + Math.random() * 0.35);
       lastSpawnAt = time;
     }
 
