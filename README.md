@@ -7,10 +7,34 @@
 這是一個手機優先的互動網頁：
 
 1. 在中央圓形點火區，以不同節奏點擊至少 3 次。
-2. 系統會依照速度、穩定度與長短變化，生成 5 種不同顏色的火焰。
+2. 系統會依照速度、穩定度與長短變化，生成不同顏色與稀有度的火焰。
 3. 兩支手機加入同一個 5 碼房間。
 4. 傳火者選擇「我要傳火」，接收者選擇「我要接火」。
 5. 兩台手機都啟用動作感測，輕碰手機邊緣或同時做一下短促晃動，即會傳遞同一組火焰資料。
+
+## PWA 安裝
+
+本專案已包含：
+
+- `manifest.webmanifest`
+- `service-worker.js`
+- 主畫面圖示
+- iPhone 加入主畫面提示
+- Android／桌面瀏覽器安裝提示
+- App Shell 離線快取
+
+### iPhone／iPad
+
+1. 使用 Safari 開啟部署後的 HTTPS 網址。
+2. 點擊分享按鈕。
+3. 選擇「加入主畫面」。
+4. 從主畫面開啟「傳火」，即可使用獨立全螢幕模式。
+
+### Android／桌面 Chrome
+
+開啟網站後，點擊畫面下方的「立即安裝」，或使用瀏覽器選單的「安裝應用程式」。
+
+> PWA 的畫面與點火功能可被快取；建立房間、加入房間及手機互傳仍需要網路連線與 Node.js 伺服器。
 
 ## 直接啟動
 
@@ -65,11 +89,6 @@ npm start
 
 使用者體驗仍是「兩支手機輕碰後傳火」，而且可以跨 iPhone／Android 測試。
 
-參考：
-
-- MDN DeviceMotionEvent.requestPermission：https://developer.mozilla.org/en-US/docs/Web/API/DeviceMotionEvent/requestPermission_static
-- MDN Web NFC API：https://developer.mozilla.org/en-US/docs/Web/API/Web_NFC_API
-
 ## 火焰規則
 
 - **疾風火**：平均點擊間隔很短，藍色系。
@@ -88,14 +107,26 @@ Lit-fire/
 ├─ render.yaml
 ├─ 啟動傳火計畫.bat
 ├─ 啟動傳火計畫.command
+├─ .github/workflows/package-pwa.yml
 └─ public/
    ├─ index.html
    ├─ styles.css
    ├─ app.js
+   ├─ pwa-install.js
    ├─ service-worker.js
    ├─ manifest.webmanifest
    └─ icon.svg
 ```
+
+## 自動產生完整 ZIP
+
+GitHub Actions 會在 PWA 分支建立 Pull Request 時執行語法檢查，並產生：
+
+```text
+Lit-fire-PWA-complete.zip
+```
+
+可在該次 GitHub Actions 執行頁面的 Artifacts 區域下載。
 
 ## 注意事項
 
