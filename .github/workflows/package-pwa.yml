@@ -1,0 +1,35 @@
+name: Build PWA package
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Check JavaScript syntax
+        run: npm run check
+
+      - name: Create complete PWA ZIP
+        run: |
+          mkdir -p dist
+          zip -r "dist/Lit-fire-PWA-complete.zip" . \
+            -x ".git/*" \
+            -x "dist/*" \
+            -x ".github/*"
+
+      - name: Upload PWA package
+        uses: actions/upload-artifact@v4
+        with:
+          name: Lit-fire-PWA-complete
+          path: dist/Lit-fire-PWA-complete.zip
+          if-no-files-found: error
+          retention-days: 30
