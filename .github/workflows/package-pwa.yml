@@ -1,6 +1,8 @@
 name: Build PWA package
 
 on:
+  push:
+    branches: [pwa-package]
   pull_request:
     branches: [main]
   workflow_dispatch:
