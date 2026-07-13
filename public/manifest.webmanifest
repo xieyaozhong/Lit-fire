@@ -13,6 +13,7 @@
   "background_color": "#090711",
   "theme_color": "#120d1f",
   "categories": ["games", "entertainment", "social"],
+  "prefer_related_applications": false,
   "icons": [
     {
       "src": "/icon.svg",
