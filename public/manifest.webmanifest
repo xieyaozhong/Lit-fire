@@ -1,11 +1,18 @@
 {
+  "id": "/",
   "name": "傳火計畫",
   "short_name": "傳火",
   "description": "用節奏點燃火焰，再透過手機碰撞傳給另一個人。",
-  "start_url": "/",
+  "lang": "zh-Hant",
+  "dir": "ltr",
+  "start_url": "/?source=pwa",
+  "scope": "/",
   "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
+  "orientation": "portrait-primary",
   "background_color": "#090711",
   "theme_color": "#120d1f",
+  "categories": ["games", "entertainment", "social"],
   "icons": [
     {
       "src": "/icon.svg",
