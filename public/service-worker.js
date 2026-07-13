@@ -1,6 +1,6 @@
 'use strict';
 
-const CACHE_NAME = 'fire-passing-shell-v59';
+const CACHE_NAME = 'fire-passing-shell-v60';
 const DISABLED_LEGACY_SCRIPTS = new Set([
   '/stable-flame-engine.js',
   '/stable-flame-engine-v2.js',
@@ -46,6 +46,7 @@ const APP_SHELL = [
   '/transfer-haptic-feedback.js?v=2',
   '/persistent-flame.js?v=2',
   '/flame-variant-display-guard.js?v=1',
+  '/pwa-install.js?v=1',
   '/manifest.webmanifest',
   '/icon.svg'
 ];
@@ -57,34 +58,66 @@ self.addEventListener('install', (event) => {
 
 self.addEventListener('activate', (event) => {
   event.waitUntil(
-    caches.keys().then((keys) => Promise.all(keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key))))
+    caches.keys().then((keys) =>
+      Promise.all(keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key)))
+    )
   );
   self.clients.claim();
 });
 
+async function networkFirst(request) {
+  try {
+    const response = await fetch(request);
+    if (response.ok) {
+      const cache = await caches.open(CACHE_NAME);
+      cache.put(request, response.clone());
+    }
+    return response;
+  } catch {
+    return (await caches.match(request)) || (await caches.match('/index.html'));
+  }
+}
+
+async function staleWhileRevalidate(request) {
+  const cached = await caches.match(request);
+  const networkPromise = fetch(request)
+    .then(async (response) => {
+      if (response.ok) {
+        const cache = await caches.open(CACHE_NAME);
+        cache.put(request, response.clone());
+      }
+      return response;
+    })
+    .catch(() => null);
+
+  return cached || (await networkPromise) || (await caches.match('/index.html'));
+}
+
 self.addEventListener('fetch', (event) => {
+  if (event.request.method !== 'GET') return;
+
   const requestUrl = new URL(event.request.url);
 
   if (DISABLED_LEGACY_SCRIPTS.has(requestUrl.pathname)) {
-    event.respondWith(new Response("'use strict';", {
-      status: 200,
-      headers: {
-        'Content-Type': 'application/javascript; charset=utf-8',
-        'Cache-Control': 'no-store'
-      }
-    }));
+    event.respondWith(
+      new Response("'use strict';", {
+        status: 200,
+        headers: {
+          'Content-Type': 'application/javascript; charset=utf-8',
+          'Cache-Control': 'no-store'
+        }
+      })
+    );
     return;
   }
 
   if (requestUrl.pathname.startsWith('/api/')) return;
+  if (requestUrl.origin !== self.location.origin) return;
 
-  event.respondWith(
-    fetch(event.request)
-      .then((response) => {
-        const copy = response.clone();
-        caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
-        return response;
-      })
-      .catch(() => caches.match(event.request).then((cached) => cached || caches.match('/index.html')))
-  );
+  if (event.request.mode === 'navigate') {
+    event.respondWith(networkFirst(event.request));
+    return;
+  }
+
+  event.respondWith(staleWhileRevalidate(event.request));
 });
